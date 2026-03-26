@@ -4,9 +4,9 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "missav2",
-        "name": "MissAV 2",
-        "version": "1.0.8",
+        "id": "missav",
+        "name": "MissAV",
+        "version": "1.1.0",
         "baseUrl": "https://missav.media",
         "iconUrl": "https://stpaulclinic.vn/vaapp/plugins/missav.ico",
         "isEnabled": true,
@@ -105,7 +105,7 @@ function getFilterConfig() {
 function getUrlList(slug, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    var baseUrl = "https://missav.media"; // Removed trailing slash
+    var baseUrl = "https://missav.media";
 
     // If slug is empty (default), use 'vi/new'
     var path = slug || "vi/new";
@@ -295,7 +295,7 @@ function parseListResponse(html) {
             // Filter flags/icons just in case
             if (img.indexOf('flag') !== -1 || img.indexOf('icon') !== -1) img = "";
 
-            var slug = url.replace("https://missav.media", "").replace("https://missav.media/", "/");
+            var slug = url.replace(/https?:\/\/[^\/]+/, "");
             if (slug.indexOf("/") !== 0) slug = "/" + slug;
 
             if (!foundActresses[slug]) {
@@ -328,7 +328,7 @@ function parseListResponse(html) {
                 var name = PluginUtils.cleanText(innerContent);
                 if (!name || name.length < 2) continue;
 
-                var slug = url.replace("https://missav.media", "").replace("https://missav.media/", "/");
+                var slug = url.replace(/https?:\/\/[^\/]+/, "");
                 if (slug.indexOf("/") !== 0) slug = "/" + slug;
 
                 // Avoid duplicates
@@ -366,7 +366,7 @@ function parseListResponse(html) {
             var fullLinkMatch = itemHtml.match(/<a[^>]+href="([^"]+)"/);
             if (fullLinkMatch) {
                 var fullUrl = fullLinkMatch[1];
-                slug = fullUrl.replace("https://missav.media", "").replace("https://missav.media/", "/");
+                slug = fullUrl.replace(/https?:\/\/[^\/]+/, "");
                 if (slug.indexOf("/") !== 0) slug = "/" + slug;
             }
 
@@ -646,31 +646,70 @@ function parseMovieDetail(html) {
         var streamUrl = "";
         var uuid = "";
 
-        // Strategy 1: Check for direct Surrit/Sixyik/Blob patterns
-        var blobMatch = html.match(/src=["']blob:[^"']+\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["']/i);
-        var surritMatch = html.match(/surrit\.com\/([0-9a-f-]{36})/i) || html.match(/sixyik\.com\/([0-9a-f-]{36})/i);
-        var sourceMatch = html.match(/data-source=["']([^"']+)["']/i);
-
-        if (blobMatch) {
-            uuid = blobMatch[1];
-        } else if (surritMatch) {
-            uuid = surritMatch[1];
-        } else if (sourceMatch && sourceMatch[1].indexOf('m3u8') !== -1) {
-            streamUrl = sourceMatch[1];
+        // Strategy 1: Extract from eval() obfuscated code (new pattern)
+        // The source URL is now hidden inside eval(function(p,a,c,k,e,d){...})
+        // Look for the split('|') array which contains UUID parts and domain
+        var evalMatch = html.match(/eval\(function\(p,a,c,k,e,d\)[\s\S]*?'([^']+)'\.split\('\|'\)/i);
+        if (evalMatch) {
+            var parts = evalMatch[1].split('|');
+            // Look for 'surrit' or 'sixyik' in parts to confirm it's the video source eval
+            var hasSurrit = false;
+            for (var ei = 0; ei < parts.length; ei++) {
+                if (parts[ei] === 'surrit' || parts[ei] === 'sixyik') {
+                    hasSurrit = true;
+                    break;
+                }
+            }
+            if (hasSurrit) {
+                // Find UUID parts (5 hex segments) in the array
+                var uuidParts = [];
+                for (var ei = 0; ei < parts.length; ei++) {
+                    if (parts[ei].match(/^[0-9a-f]{8,12}$/)) {
+                        uuidParts.push(parts[ei]);
+                    }
+                }
+                // Try to reconstruct UUID from parts array
+                // Pattern: fa80d6f9|e876|491d|877c|f56188cab276
+                if (uuidParts.length >= 5) {
+                    uuid = uuidParts[0] + '-' + uuidParts[1] + '-' + uuidParts[2] + '-' + uuidParts[3] + '-' + uuidParts[4];
+                }
+            }
         }
 
-        // Strategy 2: Deep Scan for UUID
+        // Strategy 2: Check for direct Surrit/Sixyik/Nineyu/Fourhoi patterns
+        if (!uuid) {
+            var surritMatch = html.match(/surrit\.com\/([0-9a-f-]{36})/i) ||
+                html.match(/sixyik\.com\/([0-9a-f-]{36})/i) ||
+                html.match(/nineyu\.com\/([0-9a-f-]{36})/i) ||
+                html.match(/fourhoi\.com\/([0-9a-f-]{36})/i);
+            if (surritMatch) {
+                uuid = surritMatch[1];
+            }
+        }
+
+        // Strategy 3: Check for blob/data-source patterns
+        if (!uuid && !streamUrl) {
+            var blobMatch = html.match(/src=["']blob:[^"']+\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["']/i);
+            var sourceMatch = html.match(/data-source=["']([^"']+)["']/i);
+            if (blobMatch) {
+                uuid = blobMatch[1];
+            } else if (sourceMatch && sourceMatch[1].indexOf('m3u8') !== -1) {
+                streamUrl = sourceMatch[1];
+            }
+        }
+
+        // Strategy 4: Deep Scan for UUID (fallback)
         if (!uuid && !streamUrl) {
             var uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
             var matches = html.match(uuidRegex) || [];
-            var blacklist = ["snaptrckr", "user_uuid", "popunder", "banner", "monitoring"];
+            var blacklist = ["snaptrckr", "user_uuid", "popunder", "banner", "monitoring", "crypto", "randomUUID", "generateUUID"];
 
             for (var i = 0; i < matches.length; i++) {
                 var u = matches[i];
                 var isBad = false;
                 var idx = html.indexOf(u);
                 if (idx !== -1) {
-                    var context = html.substring(Math.max(0, idx - 50), Math.min(html.length, idx + 50));
+                    var context = html.substring(Math.max(0, idx - 80), Math.min(html.length, idx + 80));
                     for (var j = 0; j < blacklist.length; j++) {
                         if (context.indexOf(blacklist[j]) !== -1) {
                             isBad = true; break;
@@ -737,7 +776,8 @@ function parseDetailResponse(html) {
         url: streamUrl,
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://missav.media/"
+            "Referer": "https://missav.media/",
+            "Origin": "https://missav.media"
         },
         subtitles: []
     });

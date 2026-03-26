@@ -4,8 +4,8 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "missav",
-        "name": "MissAV 1",
+        "id": "missav2",
+        "name": "MissAV 2",
         "version": "1.0.9",
         "baseUrl": "https://missav123.com",
         "fallbackUrls": ["https://missav.media"],
