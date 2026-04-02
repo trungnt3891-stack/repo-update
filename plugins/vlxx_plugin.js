@@ -356,6 +356,7 @@ function parseEmbedResponse(html, url) {
             return JSON.stringify({
                 url: fileMatch[1],
                 isEmbed: false,
+                mimeType: "application/x-mpegURL",
                 headers: {
                     "Referer": "https://play.vlstream.net/"
                 }
@@ -371,6 +372,7 @@ function parseEmbedResponse(html, url) {
                     return JSON.stringify({
                         url: sources[0].file,
                         isEmbed: false,
+                        mimeType: sources[0].type === 'hls' ? 'application/x-mpegURL' : '',
                         headers: {
                             "Referer": "https://play.vlstream.net/"
                         }
@@ -382,6 +384,7 @@ function parseEmbedResponse(html, url) {
                     return JSON.stringify({
                         url: regexFile[1],
                         isEmbed: false,
+                        mimeType: "application/x-mpegURL",
                         headers: {
                             "Referer": "https://play.vlstream.net/"
                         }
@@ -396,6 +399,7 @@ function parseEmbedResponse(html, url) {
             return JSON.stringify({
                 url: vlMatch[1],
                 isEmbed: false,
+                mimeType: "application/x-mpegURL",
                 headers: {
                     "Referer": "https://play.vlstream.net/"
                 }
