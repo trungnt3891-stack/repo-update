@@ -6,8 +6,8 @@ function getManifest() {
     return JSON.stringify({
         "id": "sextop1",
         "name": "Sextop1",
-        "version": "1.1.4",
-        "baseUrl": "https://sextop1.page",
+        "version": "1.1.5",
+        "baseUrl": "https://vnsextop1.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop1.webp",
         "isEnabled": true,
         "isAdult": true,
@@ -76,15 +76,15 @@ function getUrlList(slug, filtersJson) {
 
     // Prioritize category filter if present
     if (filters.category) {
-        return "https://sextop1.page/the-loai/" + filters.category + "?page=" + page;
+        return "https://vnsextop1.com/the-loai/" + filters.category + "?page=" + page;
     }
 
     if (slug === 'moi-nhat' || !slug) {
-        return "https://sextop1.page/?page=" + page;
+        return "https://vnsextop1.com/?page=" + page;
     }
 
     if (slug === 'actresses') {
-        return "https://sextop1.page/actresses?page=" + page;
+        return "https://vnsextop1.com/actresses?page=" + page;
     }
 
     // Handle full URL slugs or relative paths
@@ -93,27 +93,27 @@ function getUrlList(slug, filtersJson) {
     }
 
     if (slug.indexOf("/") === 0) {
-        return "https://sextop1.page" + slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
+        return "https://vnsextop1.com" + slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
     }
 
-    return "https://sextop1.page/the-loai/" + slug + "?page=" + page;
+    return "https://vnsextop1.com/the-loai/" + slug + "?page=" + page;
 }
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    return "https://sextop1.page/search?k=" + encodeURIComponent(keyword) + "&page=" + page;
+    return "https://vnsextop1.com/search?k=" + encodeURIComponent(keyword) + "&page=" + page;
 }
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
-    if (slug.indexOf("/") === 0) return "https://sextop1.page" + slug;
-    return "https://sextop1.page/phim-sex/" + slug;
+    if (slug.indexOf("/") === 0) return "https://vnsextop1.com" + slug;
+    return "https://vnsextop1.com/phim-sex/" + slug;
 }
 
-function getUrlCategories() { return "https://sextop1.page/?view=the-loai"; }
-function getUrlCountries() { return "https://sextop1.page/"; }
-function getUrlYears() { return "https://sextop1.page/"; }
+function getUrlCategories() { return "https://vnsextop1.com/?view=the-loai"; }
+function getUrlCountries() { return "https://vnsextop1.com/"; }
+function getUrlYears() { return "https://vnsextop1.com/"; }
 
 // =============================================================================
 // PARSERS
@@ -319,7 +319,7 @@ function parseDetailResponse(html, fallbackUrl) {
             url: streamUrl.replace(/&amp;/g, "&"),
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": "https://sextop1.page/"
+                "Referer": "https://vnsextop1.com/"
             },
             subtitles: [],
             isEmbed: true,
@@ -380,7 +380,7 @@ function parseEmbedResponse(html, fallbackUrl) {
         url: finalUrl.replace(/&amp;/g, "&"),
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": fallbackUrl || "https://sextop1.page/"
+            "Referer": fallbackUrl || "https://vnsextop1.com/"
         },
         subtitles: [],
         isEmbed: false // We already parsed it

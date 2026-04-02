@@ -6,8 +6,8 @@ function getManifest() {
     return JSON.stringify({
         "id": "sextop2",
         "name": "Sextop2",
-        "version": "1.1.4",
-        "baseUrl": "https://sextop1.movie",
+        "version": "1.1.5",
+        "baseUrl": "https://sextop1.forum",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop1.webp",
         "isEnabled": true,
         "isAdult": true,
@@ -76,15 +76,15 @@ function getUrlList(slug, filtersJson) {
 
     // Prioritize category filter if present
     if (filters.category) {
-        return "https://sextop1.movie/the-loai/" + filters.category + "?page=" + page;
+        return "https://sextop1.forum/the-loai/" + filters.category + "?page=" + page;
     }
 
     if (slug === 'moi-nhat' || !slug) {
-        return "https://sextop1.movie/?page=" + page;
+        return "https://sextop1.forum/?page=" + page;
     }
 
     if (slug === 'actresses') {
-        return "https://sextop1.movie/actresses?page=" + page;
+        return "https://sextop1.forum/actresses?page=" + page;
     }
 
     // Handle full URL slugs or relative paths
@@ -93,27 +93,27 @@ function getUrlList(slug, filtersJson) {
     }
 
     if (slug.indexOf("/") === 0) {
-        return "https://sextop1.movie" + slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
+        return "https://sextop1.forum" + slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
     }
 
-    return "https://sextop1.movie/the-loai/" + slug + "?page=" + page;
+    return "https://sextop1.forum/the-loai/" + slug + "?page=" + page;
 }
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    return "https://sextop1.movie/search?k=" + encodeURIComponent(keyword) + "&page=" + page;
+    return "https://sextop1.forum/search?k=" + encodeURIComponent(keyword) + "&page=" + page;
 }
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
     if (slug.indexOf("/") === 0) return "https://sextop1.movie" + slug;
-    return "https://sextop1.movie/phim-sex/" + slug;
+    return "https://sextop1.forum/phim-sex/" + slug;
 }
 
-function getUrlCategories() { return "https://sextop1.movie/?view=the-loai"; }
-function getUrlCountries() { return "https://sextop1.movie/"; }
-function getUrlYears() { return "https://sextop1.movie/"; }
+function getUrlCategories() { return "https://sextop1.forum/?view=the-loai"; }
+function getUrlCountries() { return "https://sextop1.forum/"; }
+function getUrlYears() { return "https://sextop1.forum/"; }
 
 // =============================================================================
 // PARSERS
@@ -311,7 +311,7 @@ function parseDetailResponse(html, fallbackUrl) {
             url: streamUrl.replace(/&amp;/g, "&"),
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": "https://sextop1.movie/",
+                "Referer": "https://sextop1.forum/",
                 "Allowed-Domains": "spexliu.top, streamqq.com",
                 "Custom-Js": "var attempt=0; var clbInt=setInterval(function(){var b=document.querySelector('.jw-display-icon-display, .jw-display-icon-container, img[src*=\\\"play\\\"], .play-btn, .vjs-big-play-button');if(b){try{b.click();b.style.display='none';clearInterval(clbInt);}catch(e){}}if(attempt++>20)clearInterval(clbInt);},500);"
             },
