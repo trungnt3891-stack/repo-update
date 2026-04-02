@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "javhd",
         "name": "JavHD",
-        "version": "1.0.2",
+        "version": "1.0.4",
         "baseUrl": "https://javhdz.today",
         "iconUrl": "https://javhdz.today/favicon.ico",
         "isEnabled": true,
@@ -72,39 +72,40 @@ function getFilterConfig() {
 
 function getUrlList(slug, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
-    var page = filters.page || 1;
+    var page = parseInt(filters.page) || 1;
     var sortPath = (filters.sort && filters.sort !== 'recent') ? (filters.sort + '/') : '';
+    var pageStr = (page > 1) ? page + '/' : '';
 
     if (filters.category) {
-        return "https://javhdz.today/" + filters.category + "/" + sortPath + "?page=" + page;
+        // /uncensored-jav/2/
+        return "https://javhdz.today/" + filters.category + "/" + sortPath + pageStr;
     }
 
     if (!slug || slug === 'recent') {
-        return "https://javhdz.today/recent/?page=" + page;
+        // /recent/2/
+        return "https://javhdz.today/recent/" + pageStr;
     }
 
     // Handles absolute slugs
     if (slug.indexOf("http") === 0) {
-        return slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
+        // Strip trailing slash then append /page/
+        var base = slug.replace(/\/+$/, '');
+        return base + '/' + pageStr;
     }
 
     if (slug.indexOf("/") === 0) {
-        return "https://javhdz.today/" + slug + (slug.indexOf("?") === -1 ? "?" : "&") + "page=" + page;
+        slug = slug.replace(/^\/+/, '').replace(/\/+$/, '');
     }
 
-    // Combine slug and sort
-    if (slug.indexOf('/') !== -1) {
-        // e.g., 'popular/today'
-        return "https://javhdz.today/" + slug + "/?page=" + page;
-    }
-
-    return "https://javhdz.today/" + slug + "/" + sortPath + "?page=" + page;
+    // e.g., 'popular/today' -> /popular/today/2/
+    return "https://javhdz.today/" + slug + "/" + sortPath + pageStr;
 }
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
-    var page = filters.page || 1;
-    return "https://javhdz.today/search/video/?s=" + encodeURIComponent(keyword) + "&page=" + page;
+    var page = parseInt(filters.page) || 1;
+    var pageStr = (page > 1) ? page + '/' : '';
+    return "https://javhdz.today/search/video/" + pageStr + "?s=" + encodeURIComponent(keyword);
 }
 
 function getUrlDetail(slug) {
@@ -207,15 +208,44 @@ function parseListResponse(html) {
         }
     }
 
+    // Parse pagination: links are path-based like /recent/2/, /recent/11640/
     var totalPages = 1;
-    var pagesMatch = html.match(/page=(\d+)/g);
+    var currentPage = 1;
 
-    if (pagesMatch) {
-        for (var j = 0; j < pagesMatch.length; j++) {
-            var pMatch = pagesMatch[j].match(/page=(\d+)/);
-            if (pMatch) {
-                var p = parseInt(pMatch[1]);
-                if (p > totalPages) totalPages = p;
+    // Try path-based pagination: href="/recent/2/", href="/uncensored-jav/3/"
+    var paginationBlock = html.match(/<ul[^>]*class="pagination[^"]*"[^>]*>([\s\S]*?)<\/ul>/);
+    if (paginationBlock) {
+        var pagNav = paginationBlock[1];
+
+        // Find current page from active li
+        var activeMatch = pagNav.match(/<li[^>]*class="[^"]*active[^"]*"[^>]*>\s*<a[^>]*>(\d+)<\/a>/i);
+        if (activeMatch) {
+            currentPage = parseInt(activeMatch[1]) || 1;
+        }
+
+        // Find all page numbers from links: href="/slug/N/"
+        var pageLinks = pagNav.match(/href="[^"]*\/(\d+)\/?"/g);
+        if (pageLinks) {
+            for (var j = 0; j < pageLinks.length; j++) {
+                var pMatch = pageLinks[j].match(/\/(\d+)\/?"/);
+                if (pMatch) {
+                    var p = parseInt(pMatch[1]);
+                    if (p > totalPages) totalPages = p;
+                }
+            }
+        }
+    }
+
+    // Fallback: try ?page=N format
+    if (totalPages <= 1) {
+        var queryPages = html.match(/[?&]page=(\d+)/g);
+        if (queryPages) {
+            for (var k = 0; k < queryPages.length; k++) {
+                var qMatch = queryPages[k].match(/(\d+)/);
+                if (qMatch) {
+                    var qp = parseInt(qMatch[1]);
+                    if (qp > totalPages) totalPages = qp;
+                }
             }
         }
     }
@@ -223,7 +253,7 @@ function parseListResponse(html) {
     return JSON.stringify({
         items: movies,
         pagination: {
-            currentPage: 1,
+            currentPage: currentPage,
             totalPages: totalPages || 1,
             totalItems: movies.length,
             itemsPerPage: 20
@@ -265,7 +295,7 @@ function parseMovieDetail(html) {
                         }
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             if (decodedUrl) {
                 foundServer = true;
@@ -369,7 +399,7 @@ function parseMovieDetail(html) {
 function parseDetailResponse(html, fallbackUrl) {
     try {
         var hostUrl = fallbackUrl || "";
-        
+
         var mainPlayerStr = 'id="main-player"';
         var idxMain = html.indexOf(mainPlayerStr);
         if (idxMain !== -1) {
