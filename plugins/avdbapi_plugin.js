@@ -232,7 +232,7 @@ function parseMovieDetail(apiResponseJson) {
 
 function parseDetailResponse(embedHtml, pageUrl) {
     try {
-        // Nếu response là m3u8 content → trả pageUrl để ExoPlayer play trực tiếp
+        // Nếu response là m3u8 content → trả pageUrl để AVPlayer play trực tiếp
         if (embedHtml.indexOf("#EXTM3U") !== -1 || embedHtml.indexOf("#EXT-X-") !== -1) {
             return JSON.stringify({
                 url: pageUrl || "",
@@ -245,13 +245,12 @@ function parseDetailResponse(embedHtml, pageUrl) {
             });
         }
 
-        // Nếu là HTML embed page → trả pageUrl cho WebView load trực tiếp
+        // Nếu là HTML embed page → trả isEmbed: true để iOS dùng WebView
         // WebView sẽ render JWPlayer bên trong, tự xử lý m3u8 + Cloudflare cookies
-        // KHÔNG trả isEmbed: true vì OkHttp fetch token_hash bị Cloudflare block
         if (embedHtml.indexOf("PLAYER_CONFIG") !== -1 || embedHtml.indexOf("jwplayer") !== -1) {
             return JSON.stringify({
                 url: pageUrl || "",
-                isEmbed: false,
+                isEmbed: true,
                 headers: {
                     "Referer": "https://upload18.org/",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -271,11 +270,14 @@ function parseDetailResponse(embedHtml, pageUrl) {
             });
         }
 
-        // Fallback cuối: trả embed URL cho WebView
+        // Fallback cuối: trả embed URL cho WebView load trực tiếp
         return JSON.stringify({
             url: pageUrl || "",
-            isEmbed: false,
-            headers: {},
+            isEmbed: true,
+            headers: {
+                "Referer": "https://upload18.org/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
             subtitles: []
         });
     } catch (error) { return "{}"; }
