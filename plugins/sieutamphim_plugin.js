@@ -80,6 +80,10 @@ function getUrlSearch(keyword, filtersJson) {
 }
 
 function getUrlDetail(id) {
+    // Nếu là ID tập phim (bắt đầu bằng play://), gỡ prefix để lấy URL nạp data
+    if (id && id.startsWith("play://")) {
+        return id.replace("play://", "");
+    }
     return id.startsWith("http") ? id : BASE_URL + "/" + id;
 }
 
@@ -139,7 +143,12 @@ function parseSearchResponse(html) {
 // PARSE DETAIL
 // ========================================================
 
-function parseMovieDetail(html) {
+function parseMovieDetail(html, url) {
+    // Nếu URL chứa 'server=', đây là link lấy stream, không phải lấy detail.
+    // Trả về kết quả rỗng để App không push thêm màn hình Detail.
+    if (url && url.includes("server=")) {
+        return JSON.stringify({ id: url, servers: [] });
+    }
     try {
         var title = (html.match(/<meta property="og:title" content="([^"]+)"/i) || [])[1] || "";
         var poster = (html.match(/<meta property="og:image" content="([^"]+)"/i) || [])[1] || "";
@@ -180,7 +189,8 @@ function parseMovieDetail(html) {
             var episodes = [];
             for (var j = 1; j <= epCount; j++) {
                 episodes.push({
-                    id: movieUrl + "?server=" + encodeURIComponent(serverId) + "&tap=" + j,
+                    // QUAN TRỌNG: Thêm prefix play:// để App biết đây là hành động PLAY
+                    id: "play://" + movieUrl + "?server=" + encodeURIComponent(serverId) + "&tap=" + j,
                     name: epCount === 1 ? "Full" : "Tập " + j,
                     slug: String(j)
                 });
@@ -196,7 +206,7 @@ function parseMovieDetail(html) {
         if (servers.length === 0) {
             servers.push({
                 name: "Mặc định",
-                episodes: [{ id: movieUrl, name: "Full", slug: "full" }]
+                episodes: [{ id: "play://" + movieUrl, name: "Full", slug: "full" }]
             });
         }
 
