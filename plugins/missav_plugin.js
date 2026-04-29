@@ -6,9 +6,8 @@ function getManifest() {
     return JSON.stringify({
         "id": "missav",
         "name": "MissAV",
-        "version": "1.1.1",
+        "version": "1.1.4",
         "baseUrl": "https://missav.media",
-        "referrer": "https://missav.media/",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico",
         "isEnabled": true,
         "isAdult": true,
