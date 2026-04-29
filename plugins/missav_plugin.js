@@ -8,6 +8,7 @@ function getManifest() {
         "name": "MissAV",
         "version": "1.1.1",
         "baseUrl": "https://missav.media",
+        "referrer": "https://missav123.com/",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico",
         "isEnabled": true,
         "isAdult": true,
@@ -188,6 +189,34 @@ var PluginUtils = {
             results.push(match[1]);
         }
         return results;
+    },
+    /**
+     * Tối ưu hóa việc lấy Preview URL bằng 3 bước Strategy tương tự như lấy link phim
+     */
+    extractPreviewUrl: function (itemHtml) {
+        // Strategy 1: Regex cơ bản từ data-src của thẻ video
+        var previewMatch = itemHtml.match(/<video[^>]+data-src="([^"]+)"/);
+        var url = previewMatch ? previewMatch[1] : "";
+        
+        // Strategy 2: Nếu chỉ là UUID (36 ký tự) thì dựng link surrit
+        if (url && url.length === 36 && url.match(/^[0-9a-f-]{36}$/i)) {
+            return "https://surrit.com/" + url + "/preview.mp4";
+        }
+        
+        // Strategy 3: Deep Scan UUID trong cụm HTML của item (giống Strategy của link phim)
+        if (!url || url === "") {
+            var uuidMatch = itemHtml.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+            if (uuidMatch) {
+                return "https://surrit.com/" + uuidMatch[0] + "/preview.mp4";
+            }
+        }
+        
+        // Chuẩn hóa protocol
+        if (url && url.indexOf('//') === 0) {
+            return "https:" + url;
+        }
+        
+        return url;
     }
 };
 
@@ -443,9 +472,8 @@ function parseListResponse(html) {
                     itemHtml.indexOf("Uncensored") !== -1 ||
                     itemHtml.indexOf("bg-blue-800") !== -1;
 
-                // Extract Preview Video
-                var previewMatch = itemHtml.match(/<video[^>]+data-src="([^"]+)"/);
-                var previewUrl = previewMatch ? previewMatch[1] : "";
+                // Extract Preview Video bằng Strategy tối ưu
+                var previewUrl = PluginUtils.extractPreviewUrl(itemHtml);
 
                 movies.push({
                     id: slug,
