@@ -7,7 +7,7 @@ function getManifest() {
         "id": "missav2",
         "name": "MissAV 2",
         "version": "1.1.2",
-        "baseUrl": "https://missav.ai",
+        "baseUrl": "https://missav123.com",
         "fallbackUrls": ["https://missav.media"],
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico",
         "isEnabled": true,
@@ -15,7 +15,7 @@ function getManifest() {
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
         "subtitleCat": true,
-        "imageReferer": "https://missav.ai/"
+        "imageReferer": "https://missav123.com/"
     });
 }
 
@@ -107,7 +107,7 @@ function getFilterConfig() {
 function getUrlList(slug, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    var baseUrl = "https://missav.ai"; // Removed trailing slash
+    var baseUrl = "https://missav123.com"; // Removed trailing slash
 
     // If slug is empty (default), use 'vi/new'
     var path = slug || "vi/new";
@@ -134,16 +134,16 @@ function getUrlList(slug, filtersJson) {
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    return "https://missav.ai/vi/search/" + encodeURIComponent(keyword) + "?page=" + page;
+    return "https://missav123.com/vi/search/" + encodeURIComponent(keyword) + "?page=" + page;
 }
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
-    if (slug.indexOf("/") === 0) return "https://missav.ai" + slug;
-    return "https://missav.ai/vi/" + slug;
+    if (slug.indexOf("/") === 0) return "https://missav123.com" + slug;
+    return "https://missav123.com/vi/" + slug;
 }
 
-function getUrlCategories() { return "https://missav.ai/vi/genres"; }
+function getUrlCategories() { return "https://missav123.com/vi/genres"; }
 function getUrlCountries() { return ""; } // Not supported
 function getUrlYears() { return ""; } // Not supported
 
@@ -297,7 +297,7 @@ function parseListResponse(html) {
             // Filter flags/icons just in case
             if (img.indexOf('flag') !== -1 || img.indexOf('icon') !== -1) img = "";
 
-            var slug = url.replace("https://missav.ai", "").replace("https://missav.ai/", "/");
+            var slug = url.replace("https://missav123.com", "").replace("https://missav123.com/", "/");
             if (slug.indexOf("/") !== 0) slug = "/" + slug;
 
             if (!foundActresses[slug]) {
@@ -330,7 +330,7 @@ function parseListResponse(html) {
                 var name = PluginUtils.cleanText(innerContent);
                 if (!name || name.length < 2) continue;
 
-                var slug = url.replace("https://missav.ai", "").replace("https://missav.ai/", "/");
+                var slug = url.replace("https://missav123.com", "").replace("https://missav123.com/", "/");
                 if (slug.indexOf("/") !== 0) slug = "/" + slug;
 
                 // Avoid duplicates
@@ -368,7 +368,7 @@ function parseListResponse(html) {
             var fullLinkMatch = itemHtml.match(/<a[^>]+href="([^"]+)"/);
             if (fullLinkMatch) {
                 var fullUrl = fullLinkMatch[1];
-                slug = fullUrl.replace("https://missav.ai", "").replace("https://missav.ai/", "/");
+                slug = fullUrl.replace("https://missav123.com", "").replace("https://missav123.com/", "/");
                 if (slug.indexOf("/") !== 0) slug = "/" + slug;
             }
 
@@ -793,8 +793,8 @@ function parseDetailResponse(html) {
         url: streamUrl,
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://missav.ai/",
-            "Origin": "https://missav.ai"
+            "Referer": "https://missav123.com/",
+            "Origin": "https://missav123.com"
         },
         subtitles: []
     });
