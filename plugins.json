@@ -37,13 +37,6 @@
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/clbpx.ico"
         },
         {
-            "id": "thapcam",
-            "name": "Thập Cẩm Fake",
-            "version": "1.0.3",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/thapcam_plugin.js",
-            "iconUrl": "https://tctv.pro/10cam-logo-app-light.jpg"
-        },
-        {
             "id": "vmttv",
             "name": "VMT TV",
             "version": "1.0.2",
