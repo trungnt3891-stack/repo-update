@@ -11,6 +11,7 @@ function getManifest() {
         "iconUrl": "https://topxx.vip/favicon.ico",
         "isEnabled": true,
         "isAdult": true,
+        "layoutType": "HORIZONTAL",
         "type": "MOVIE"
     });
 }
