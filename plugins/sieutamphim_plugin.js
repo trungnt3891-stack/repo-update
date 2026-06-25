@@ -12,7 +12,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "sieutamphim",
         "name": "Sưu Tầm Phim",
-        "version": "1.0.1",
+        "version": "1.0.5",
         "baseUrl": "https://www.sieutamphim.pro",
         "iconUrl": "https://www.sieutamphim.pro/posts/2024/06/cropped-logosieutamphim-192x192.png",
         "isEnabled": true,
@@ -260,16 +260,31 @@ function parseDetailResponse(html, url) {
                     while ((epMatch = epRegex.exec(rawEpisodes)) !== null) {
                         if (currentIndex === tap) {
                             var rawSrc = epMatch[1];
-                            // Mã hóa base64 rawSrc
-                            var base64Url = base64Encode(rawSrc);
-                            var embedUrl = BASE_URL + "/embed.html?url=" + encodeURIComponent(base64Url);
-                            log("Constructed Embed URL: " + embedUrl);
+                            // Giải mã XOR với khóa 42 để lấy link abyssplayer.com thật
+                            var decrypted = "";
+                            for (var i = 0; i < rawSrc.length; i++) {
+                                decrypted += String.fromCharCode(rawSrc.charCodeAt(i) ^ 42);
+                            }
+                            decrypted = decrypted.replace(/https?:\/\/(short\.ink|short\.icu)\//g, "https://abyssplayer.com/");
+                            log("Decrypted Stream URL: " + decrypted);
                             
-                            return JSON.stringify({
-                                url: embedUrl,
-                                isEmbed: true,
-                                headers: { "Referer": BASE_URL + "/" }
-                            });
+                            if (decrypted.indexOf(".m3u8") !== -1) {
+                                return JSON.stringify({
+                                    url: decrypted,
+                                    mimeType: "application/x-mpegURL",
+                                    isEmbed: false
+                                });
+                            } else {
+                                // Tạo trang HTML bọc iframe của abyssplayer để tránh redirect bypass sang abyss.to
+                                var iframeHtml = '<html><body style="margin:0;padding:0;background:#000;"><iframe src="' + decrypted + '" style="width:100%;height:100%;border:none;" allowfullscreen></iframe></body></html>';
+                                var base64Url = "data:text/html;base64," + base64Encode(iframeHtml);
+                                
+                                return JSON.stringify({
+                                    url: base64Url,
+                                    isEmbed: true,
+                                    headers: { "Referer": BASE_URL + "/" }
+                                });
+                            }
                         }
                         currentIndex++;
                     }
