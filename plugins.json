@@ -88,14 +88,14 @@
         {
             "id": "javhd",
             "name": "JavHD",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/javhd_plugin.js",
             "iconUrl": "https://javhd.today/favicon.ico"
         },
         {
             "id": "vlxx",
             "name": "VLXX",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/vlxx_plugin.js",
             "iconUrl": "https://vlxx.bz/favicon.ico"
         },
