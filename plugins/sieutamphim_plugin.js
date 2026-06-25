@@ -19,7 +19,7 @@ function getManifest() {
         "isAdult": false,
         "type": "MOVIE",
         "layoutType": "VERTICAL",
-        "playerType": "auto"
+        "playerType": "embed"
     });
 }
 
