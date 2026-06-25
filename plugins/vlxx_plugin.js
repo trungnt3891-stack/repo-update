@@ -161,7 +161,9 @@ function parseSearchResponse(html) {
 
 function parseMovieDetail(html) {
     try {
-        var titleMatch = html.match(/<h2[^>]*page-title[^>]*>([\s\S]*?)<\/h2>/i);
+        var titleMatch = html.match(/<h1[^>]*page-title[^>]*>([\s\S]*?)<\/h1>/i)
+            || html.match(/<h2[^>]*page-title[^>]*>([\s\S]*?)<\/h2>/i)
+            || html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
         var title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : "";
 
         var descMatch = html.match(/<div[^>]*class=["']video-description["'][^>]*>([\s\S]*?)<\/div>/i);
