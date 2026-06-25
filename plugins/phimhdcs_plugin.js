@@ -6,11 +6,11 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.6",
+        "version": "1.0.7",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
-        "playerType": "embed",
+        "playerType": "exoplayer",
         "type": "MOVIE"
     });
 }
@@ -663,4 +663,128 @@ function parseYearsResponse(htmlContent) {
         for (var y = 2026; y >= 2000; y--) years.push({ name: y.toString(), value: y.toString() });
         return JSON.stringify(years);
     } catch (e) { return "[]"; }
+}
+
+function parseEmbedResponse(htmlContent, url) {
+    try {
+        log("parseEmbedResponse input url: " + url);
+        
+        // --- XỬ LÝ DEPTH 2: Phản hồi từ endpoint getVideo (là JSON string) ---
+        if (url.indexOf("do=getVideo") !== -1 || (htmlContent.indexOf("securedLink") !== -1 && htmlContent.indexOf("hls") !== -1)) {
+            log("parseEmbedResponse processing getVideo JSON response");
+            var jData = JSON.parse(htmlContent);
+            var streamUrl = "";
+            if (jData.securedLink) {
+                streamUrl = jData.securedLink;
+            } else if (jData.videoSource) {
+                streamUrl = jData.videoSource;
+            } else if (jData.videoSources && jData.videoSources.length > 0) {
+                streamUrl = jData.videoSources[0].file;
+            }
+            
+            // Lấy subtitles được truyền từ depth 1 qua query parameter
+            var subtitles = [];
+            var subMatch = /[?&]subs=([^&]+)/.exec(url);
+            if (subMatch) {
+                try {
+                    subtitles = JSON.parse(decodeURIComponent(subMatch[1]));
+                } catch(e) {
+                    log("parseEmbedResponse parse subs query parameter error: " + e);
+                }
+            }
+            
+            if (streamUrl) {
+                log("parseEmbedResponse found streamUrl: " + streamUrl);
+                return JSON.stringify({
+                    url: streamUrl,
+                    isEmbed: false, // Dừng vòng lặp để phát Native
+                    mimeType: "application/x-mpegURL",
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Referer": "https://play.streamxemphimhd.site/"
+                    },
+                    subtitles: subtitles
+                });
+            } else {
+                log("parseEmbedResponse no streamUrl found in JSON");
+                return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+            }
+        }
+
+        // --- XỬ LÝ DEPTH 1: Phản hồi từ trang embed HTML ban đầu ---
+        log("parseEmbedResponse processing HTML embed page");
+        
+        // 1. Trích xuất ID của video từ url
+        var embedId = null;
+        var idMatch = /\/video\/([a-zA-Z0-9]+)/.exec(url);
+        if (idMatch) {
+            embedId = idMatch[1];
+        }
+        
+        // 2. Tìm kiếm JS packer và giải mã để lấy phụ đề (subtitles)
+        var subtitles = [];
+        var match = htmlContent.match(/eval\((function\(p,a,c,k,e,d\)[\s\S]+?split\('\|'\),0,\{\}\))\)/);
+        if (match) {
+            var innerCode = match[1];
+            try {
+                var unpacked = eval("(" + innerCode + ")");
+                log("parseEmbedResponse unpacked packer successfully");
+                
+                // Trích xuất ID từ FirePlayer call đề phòng ID từ URL bị sai
+                var firePlayerIdMatch = /FirePlayer\(\s*["']([^"']+)["']/.exec(unpacked);
+                if (firePlayerIdMatch) {
+                    embedId = firePlayerIdMatch[1];
+                }
+                
+                // Trích xuất subtitles
+                var tracksMatch = /"tracks"\s*:\s*(\[[\s\S]*?\])/.exec(unpacked);
+                if (tracksMatch) {
+                    var tracks = JSON.parse(tracksMatch[1]);
+                    for (var i = 0; i < tracks.length; i++) {
+                        var track = tracks[i];
+                        if (track.kind === "captions" && track.file && track.label) {
+                            subtitles.push({
+                                lang: track.label,
+                                url: track.file,
+                                isAutoTranslated: false
+                            });
+                        }
+                    }
+                    log("parseEmbedResponse found subtitles: " + subtitles.length);
+                }
+            } catch (e) {
+                log("parseEmbedResponse eval packer error: " + e);
+            }
+        }
+        
+        if (!embedId) {
+            log("parseEmbedResponse cannot find embedId, aborting");
+            return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+        }
+        
+        // 3. Trả về cấu hình POST request đến API getVideo để VAAPP fetch tiếp (depth 2)
+        var subtitlesQuery = encodeURIComponent(JSON.stringify(subtitles));
+        var postUrl = "https://play.streamxemphimhd.site/player/index.php?data=" + embedId + "&do=getVideo&subs=" + subtitlesQuery;
+        var postBody = "hash=" + embedId + "&r=https%3A%2F%2Fphimhdcss.com%2F";
+        var headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": url,
+            "Origin": "https://play.streamxemphimhd.site",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Requested-With": "XMLHttpRequest"
+        };
+        
+        log("parseEmbedResponse returning POST request to getVideo API");
+        return JSON.stringify({
+            url: postUrl,
+            isEmbed: true, // Tiếp tục vòng lặp tiếp theo
+            postBody: postBody,
+            headers: headers,
+            subtitles: []
+        });
+        
+    } catch (e) {
+        log("parseEmbedResponse error: " + e);
+        return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+    }
 }
