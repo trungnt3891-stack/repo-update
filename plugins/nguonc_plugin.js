@@ -6,12 +6,12 @@ function getManifest() {
     return JSON.stringify({
         "id": "nguonc",
         "name": "Phim NguonC",
-        "version": "1.1.3",
+        "version": "1.1.4",
         "baseUrl": "https://phim.nguonc.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png",
         "isEnabled": true,
         "type": "MOVIE",
-        "playerType": "embed"
+        "playerType": "embedtoexoplay"
     });
 }
 
@@ -283,8 +283,50 @@ function parseMovieDetail(apiResponseJson) {
 
 function parseDetailResponse(html) {
     try {
-        // Find m3u8 link in the Embed HTML (JWPlayer/Source)
-        // Regex for file: "..." or source: "..." containing .m3u8
+        var decodeBase64 = function (str) {
+            try {
+                var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+                var result = '';
+                str = String(str).replace(/[^A-Za-z0-9+\/=]/g, '');
+                var len = str.length;
+                for (var i = 0; i < len; i += 4) {
+                    var a = lookup.indexOf(str.charAt(i));
+                    var b = i + 1 < len ? lookup.indexOf(str.charAt(i + 1)) : 0;
+                    var c = i + 2 < len ? lookup.indexOf(str.charAt(i + 2)) : -1;
+                    var d = i + 3 < len ? lookup.indexOf(str.charAt(i + 3)) : -1;
+                    result += String.fromCharCode((a << 2) | (b >> 4));
+                    if (c !== -1) result += String.fromCharCode(((b & 15) << 4) | (c >> 2));
+                    if (d !== -1) result += String.fromCharCode(((c & 3) << 6) | d);
+                }
+                return result;
+            } catch (e) { return null; }
+        };
+
+        // 1. Trích xuất dataset.obf từ thẻ player
+        var obfMatch = /<div[^>]*id="player"[^>]*data-obf="([^"]+)"/.exec(html);
+        if (obfMatch) {
+            var obfBase64 = obfMatch[1];
+            var decodedObf = decodeBase64(obfBase64);
+            if (decodedObf) {
+                var streamData = JSON.parse(decodedObf);
+                var subBase64 = streamData.sUb;
+                if (subBase64) {
+                    // Dựng streamUrl tuyệt đối với đuôi .m3u9 để lấy danh sách segment không bị mã hóa
+                    var streamUrl = "https://embed1.streamc.xyz/" + subBase64 + ".m3u9";
+                    return JSON.stringify({
+                        url: streamUrl,
+                        isEmbed: false,
+                        mimeType: "application/x-mpegURL",
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+                            "Referer": "https://embed1.streamc.xyz/"
+                        }
+                    });
+                }
+            }
+        }
+
+        // Fallback: Tìm kiếm trực tiếp m3u8 thông thường nếu có
         var m3u8Regex = /file:\s*["']([^"']+\.m3u8[^"']*)["']|source:\s*["']([^"']+\.m3u8[^"']*)["']|src:\s*["']([^"']+\.m3u8[^"']*)["']|["']([^"']+\.m3u8[^"']*)["']/;
         var match = html.match(m3u8Regex);
 
@@ -296,6 +338,8 @@ function parseDetailResponse(html) {
         if (m3u8) {
             return JSON.stringify({
                 url: m3u8,
+                isEmbed: false,
+                mimeType: "application/x-mpegURL",
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Referer": "https://embed.streamc.xyz/"
@@ -303,9 +347,6 @@ function parseDetailResponse(html) {
             });
         }
 
-        // Fallback: Return empty (or original URL will be used by app if this returns empty/invalid?)
-        // If we return {}, the App might crash or handle it.
-        // Better to return the input URL if we can't find m3u8, but we don't have input URL here easily unless we parse it from html? No.
         return "{}";
     } catch (error) { return "{}"; }
 }
