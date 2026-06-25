@@ -6,9 +6,9 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.3",
-        "baseUrl": "https://phimhdcs.com",
-        "iconUrl": "https://phimhdcs.com/favicon.ico",
+        "version": "1.0.4",
+        "baseUrl": "https://phimhdcss.com",
+        "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
         "playerType": "embed",
         "type": "MOVIE"
@@ -96,7 +96,7 @@ function getUrlList(slug, filtersJson) {
     try {
         var filters = JSON.parse(filtersJson || "{}");
         var page = filters.page || 1;
-        var baseUrl = "https://phimhdcs.com";
+        var baseUrl = "https://phimhdcss.com";
 
         var hasFilter = filters.sort || filters.category || filters.country || filters.year || filters.type || filters.language;
 
@@ -129,14 +129,14 @@ function getUrlList(slug, filtersJson) {
 
         return url;
     } catch (e) {
-        return "https://phimhdcs.com/danh-sach/phim-moi";
+        return "https://phimhdcss.com/danh-sach/phim-moi";
     }
 }
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    var url = "https://phimhdcs.com/?search=" + encodeURIComponent(keyword).replace(/%20/g, "+");
+    var url = "https://phimhdcss.com/?search=" + encodeURIComponent(keyword).replace(/%20/g, "+");
     if (page > 1) {
         url += "&page=" + page;
     }
@@ -146,19 +146,19 @@ function getUrlSearch(keyword, filtersJson) {
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
     var path = slug.startsWith("/") ? slug.substring(1) : slug;
-    return "https://phimhdcs.com/" + path;
+    return "https://phimhdcss.com/" + path;
 }
 
 function getUrlCategories() {
-    return "https://phimhdcs.com/the-loai";
+    return "https://phimhdcss.com/the-loai";
 }
 
 function getUrlCountries() {
-    return "https://phimhdcs.com/quoc-gia";
+    return "https://phimhdcss.com/quoc-gia";
 }
 
 function getUrlYears() {
-    return "https://phimhdcs.com/nam";
+    return "https://phimhdcss.com/nam";
 }
 
 // =============================================================================
@@ -197,7 +197,7 @@ function parseDynamicFilters(html) {
 function parseListResponse(htmlContent) {
     try {
         var movies = [];
-        var itemPattern = /<li\s+class="item[^"]*">\s*<span\s+class="label">([^<]+)<\/span>\s*<a\s+href="https:\/\/phimhdcs\.com\/([^"]+)"\s+title="([^"]+)">\s*<img[^>]+src="([^"]+)"[^>]*\/?>[\s\S]*?<div\s+class="name">[\s\S]*?<a[^>]+title="([^"]+)">([^<]+)<\/a>/gi;
+        var itemPattern = /<li\s+class="item[^"]*">\s*<span\s+class="label">([^<]+)<\/span>\s*<a\s+href="https:\/\/phimhdcss\.com\/([^"]+)"\s+title="([^"]+)">\s*<img[^>]+src="([^"]+)"[^>]*\/?>[\s\S]*?<div\s+class="name">[\s\S]*?<a[^>]+title="([^"]+)">([^<]+)<\/a>/gi;
         var match;
 
         while ((match = itemPattern.exec(htmlContent)) !== null) {
@@ -227,8 +227,8 @@ function parseListResponse(htmlContent) {
             movies.push({
                 id: slug,
                 title: title,
-                posterUrl: posterUrl.indexOf('http') === 0 ? posterUrl : 'https://phimhdcs.com' + posterUrl,
-                backdropUrl: posterUrl.indexOf('http') === 0 ? posterUrl : 'https://phimhdcs.com' + posterUrl,
+                posterUrl: posterUrl.indexOf('http') === 0 ? posterUrl : 'https://phimhdcss.com' + posterUrl,
+                backdropUrl: posterUrl.indexOf('http') === 0 ? posterUrl : 'https://phimhdcss.com' + posterUrl,
                 year: year,
                 quality: quality,
                 episode_current: episode_current,
@@ -282,7 +282,7 @@ function parseMovieDetail(htmlContent) {
         var posterUrl = "";
         var posterMatch = /<img\s+itemprop="image"\s+src="([^"]+)"/i.exec(htmlContent);
         if (posterMatch) posterUrl = posterMatch[1];
-        if (posterUrl && posterUrl.indexOf('http') !== 0) posterUrl = 'https://phimhdcs.com' + (posterUrl.startsWith('/') ? '' : '/') + posterUrl;
+        if (posterUrl && posterUrl.indexOf('http') !== 0) posterUrl = 'https://phimhdcss.com' + (posterUrl.startsWith('/') ? '' : '/') + posterUrl;
 
         var description = "";
         var descMatch = /<div\s+class="tab">[\s\S]*?<div\s+style="text-align:\s+justify;">([\s\S]*?)<\/div>/i.exec(htmlContent);
@@ -323,30 +323,30 @@ function parseMovieDetail(htmlContent) {
         if (!episode_current) episode_current = statusInfo;
 
         var categories = [];
-        var catPattern = /<a\s+href="https:\/\/phimhdcs\.com\/the-loai\/[^"]+"\s+tite="([^"]+)">/gi;
+        var catPattern = /<a\s+href="https:\/\/phimhdcss\.com\/the-loai\/[^"]+"\s+tite="([^"]+)">/gi;
         var match;
         while ((match = catPattern.exec(htmlContent)) !== null) categories.push(match[1].trim());
         if (categories.length === 0) {
-            catPattern = /<a\s+href="https:\/\/phimhdcs\.com\/the-loai\/[^"]+"\s+title="([^"]+)">/gi;
+            catPattern = /<a\s+href="https:\/\/phimhdcss\.com\/the-loai\/[^"]+"\s+title="([^"]+)">/gi;
             while ((match = catPattern.exec(htmlContent)) !== null) categories.push(match[1].trim());
         }
 
         var countries = [];
-        var countryPattern = /<a\s+href="https:\/\/phimhdcs\.com\/quoc-gia\/[^"]+"\s+tite="([^"]+)">/gi;
+        var countryPattern = /<a\s+href="https:\/\/phimhdcss\.com\/quoc-gia\/[^"]+"\s+tite="([^"]+)">/gi;
         while ((match = countryPattern.exec(htmlContent)) !== null) countries.push(match[1].trim());
         if (countries.length === 0 && countryTag) countries.push(countryTag);
 
         var actors = [];
-        var actorPattern = /<a\s+href="https:\/\/phimhdcs\.com\/dien-vien\/[^"]+"\s+tite="Diễn viên ([^"]+)">/gi;
+        var actorPattern = /<a\s+href="https:\/\/phimhdcss\.com\/dien-vien\/[^"]+"\s+tite="Diễn viên ([^"]+)">/gi;
         while ((match = actorPattern.exec(htmlContent)) !== null) actors.push(match[1].trim());
         if (actors.length === 0) {
-            actorPattern = /<a\s+href="https:\/\/phimhdcs\.com\/dien-vien\/[^"]+"\s+title="Diễn viên ([^"]+)">/gi;
+            actorPattern = /<a\s+href="https:\/\/phimhdcss\.com\/dien-vien\/[^"]+"\s+title="Diễn viên ([^"]+)">/gi;
             while ((match = actorPattern.exec(htmlContent)) !== null) actors.push(match[1].trim());
         }
 
         var servers = [];
         // Regex thoáng hơn để bắt được cả trang detail và trang play
-        var serverPattern = /<div\s+class="server-episode-block">[\s\S]*?Danh sách\s*(?:Sever)?\s*([^:]+):[\s\S]*?<div\s+class="list-episode">([\s\S]*?)<\/div>/gi;
+        var serverPattern = /<div[^>]*class="server-episode-block"[^>]*>[\s\S]*?Danh sách\s*(?:Sever)?\s*([^:]+):[\s\S]*?<div[^>]*class="list-episode[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
 
         while ((match = serverPattern.exec(htmlContent)) !== null) {
             var serverName = match[1].trim();
@@ -356,7 +356,7 @@ function parseMovieDetail(htmlContent) {
             var epMatch;
             while ((epMatch = epPattern.exec(episodesHtml)) !== null) {
                 var epUrl = epMatch[1];
-                if (epUrl.indexOf('http') !== 0) epUrl = 'https://phimhdcs.com' + (epUrl.startsWith('/') ? '' : '/') + epUrl;
+                if (epUrl.indexOf('http') !== 0) epUrl = 'https://phimhdcss.com' + (epUrl.startsWith('/') ? '' : '/') + epUrl;
 
                 episodes.push({
                     id: epUrl,
@@ -384,14 +384,14 @@ function parseMovieDetail(htmlContent) {
         }
 
         var slug = "";
-        var slugMatch = /<link\s+rel="canonical"\s+href="https:\/\/phimhdcs\.com\/([^"\/]+)"/i.exec(htmlContent);
+        var slugMatch = /<link\s+rel="canonical"\s+href="https:\/\/phimhdcss\.com\/([^"\/]+)"/i.exec(htmlContent);
         if (slugMatch) slug = slugMatch[1];
 
         // --- NEW LOGIC: Play Button for extra episodes ---
         var extraUrl = "";
         var btnPlayMatch = /<a\s+class="btn-see btn btn-danger btn-stream-link"\s+href="([^"]+)"/i.exec(htmlContent);
         if (btnPlayMatch) extraUrl = btnPlayMatch[1];
-        if (extraUrl && extraUrl.indexOf('http') !== 0) extraUrl = 'https://phimhdcs.com' + (extraUrl.startsWith('/') ? '' : '/') + extraUrl;
+        if (extraUrl && extraUrl.indexOf('http') !== 0) extraUrl = 'https://phimhdcss.com' + (extraUrl.startsWith('/') ? '' : '/') + extraUrl;
 
         var fullDesc = description;
         if (duration) fullDesc += "\nThời lượng: " + duration;
@@ -447,7 +447,7 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 url: playerUrl,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Referer": "https://phimhdcs.com/"
+                    "Referer": "https://phimhdcss.com/"
                 },
                 subtitles: []
             });
@@ -537,11 +537,11 @@ function parseDetailResponse(htmlContent, pageUrl) {
             }
         }
 
-        var currentUrl = (pageUrl && pageUrl.indexOf("http") === 0) ? pageUrl : "https://phimhdcs.com" + (pageUrl || "");
+        var currentUrl = (pageUrl && pageUrl.indexOf("http") === 0) ? pageUrl : "https://phimhdcss.com" + (pageUrl || "");
         return makeResult(currentUrl);
 
     } catch (error) {
-        return JSON.stringify({ url: (pageUrl || "https://phimhdcs.com"), headers: {}, subtitles: [] });
+        return JSON.stringify({ url: (pageUrl || "https://phimhdcss.com"), headers: {}, subtitles: [] });
     }
 }
 
@@ -551,7 +551,7 @@ function parseCategoriesResponse(htmlContent) {
         if (filters.category && filters.category.length > 0) return JSON.stringify(filters.category);
 
         var categories = [];
-        var catPattern = /<a[^>]+href="https:\/\/phimhdcs\.com\/the-loai\/([^"]+)">([^<]+)<\/a>/gi;
+        var catPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/the-loai\/([^"]+)">([^<]+)<\/a>/gi;
         var match;
         while ((match = catPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
@@ -572,7 +572,7 @@ function parseCountriesResponse(htmlContent) {
         if (filters.country && filters.country.length > 0) return JSON.stringify(filters.country);
 
         var countries = [];
-        var countryPattern = /<a[^>]+href="https:\/\/phimhdcs\.com\/quoc-gia\/([^"]+)">([^<]+)<\/a>/gi;
+        var countryPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/quoc-gia\/([^"]+)">([^<]+)<\/a>/gi;
         var match;
         while ((match = countryPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
