@@ -1,5 +1,5 @@
 // ========================================================
-// SIÊU TẦM PHIM
+// SIÊU TẦM PHIM VAAPP PLUGIN (Code thêm từ bản của bạn ʚʚ Ƭ Ɗųƴ ɞɞ)
 // ========================================================
 
 const BASE_URL = "https://www.sieutamphim.pro";
@@ -19,7 +19,7 @@ function getManifest() {
         "isAdult": false,
         "type": "MOVIE",
         "layoutType": "VERTICAL",
-        "playerType": "embed"
+        "playerType": "auto"
     });
 }
 
@@ -260,28 +260,16 @@ function parseDetailResponse(html, url) {
                     while ((epMatch = epRegex.exec(rawEpisodes)) !== null) {
                         if (currentIndex === tap) {
                             var rawSrc = epMatch[1];
-                            // Giải mã XOR với khóa 42
-                            var decrypted = "";
-                            for (var i = 0; i < rawSrc.length; i++) {
-                                decrypted += String.fromCharCode(rawSrc.charCodeAt(i) ^ 42);
-                            }
-                            // Thay thế domain short.ink/short.icu
-                            decrypted = decrypted.replace(/https?:\/\/(short\.ink|short\.icu)\//g, "https://abyssplayer.com/");
-                            log("Decrypted Stream URL: " + decrypted);
+                            // Mã hóa base64 rawSrc
+                            var base64Url = base64Encode(rawSrc);
+                            var embedUrl = BASE_URL + "/embed.html?url=" + encodeURIComponent(base64Url);
+                            log("Constructed Embed URL: " + embedUrl);
                             
-                            if (decrypted.indexOf(".m3u8") !== -1) {
-                                return JSON.stringify({
-                                    url: decrypted,
-                                    mimeType: "application/x-mpegURL",
-                                    isEmbed: false
-                                });
-                            } else {
-                                return JSON.stringify({
-                                    url: decrypted,
-                                    isEmbed: true,
-                                    headers: { "Referer": BASE_URL + "/" }
-                                });
-                            }
+                            return JSON.stringify({
+                                url: embedUrl,
+                                isEmbed: true,
+                                headers: { "Referer": BASE_URL + "/" }
+                            });
                         }
                         currentIndex++;
                     }
@@ -331,6 +319,24 @@ function decodeHtmlEntities(str) {
         .replace(/&#038;/g, "&").replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
         .replace(/&nbsp;/g, " ").trim();
+}
+
+function base64Encode(str) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    var encoded = '';
+    for (var i = 0; i < str.length; i += 3) {
+        var c1 = str.charCodeAt(i);
+        var c2 = i + 1 < str.length ? str.charCodeAt(i + 1) : NaN;
+        var c3 = i + 2 < str.length ? str.charCodeAt(i + 2) : NaN;
+        
+        var byte1 = c1 >> 2;
+        var byte2 = ((c1 & 3) << 4) | (isNaN(c2) ? 0 : c2 >> 4);
+        var byte3 = isNaN(c2) ? 64 : ((c2 & 15) << 2) | (isNaN(c3) ? 0 : c3 >> 6);
+        var byte4 = isNaN(c3) ? 64 : c3 & 63;
+        
+        encoded += chars.charAt(byte1) + chars.charAt(byte2) + chars.charAt(byte3) + chars.charAt(byte4);
+    }
+    return encoded;
 }
 
 function parseCategoriesResponse(html) { return "[]"; }
