@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.4",
+        "version": "1.0.5",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -467,10 +467,50 @@ function parseDetailResponse(htmlContent, pageUrl) {
         var saltString = saltMatch ? saltMatch[1] : "";
 
         // =====================================================================
-        // NEW METHOD: _0xData + _0xS + curId pattern (current PhimHDCS format)
+        // NEW DECODING LOGIC: Try to extract realObj (Base64 JSON containing real links)
         // =====================================================================
-        var dataMatch = /(?:const|let|var)\s+_0xData\s*=\s*(\{[\s\S]*?\})\s*;/.exec(htmlContent);
-        if (dataMatch) {
+        var oxData = null;
+        var realObjMatch = /(?:const|let|var)\s+realObj\s*=\s*JSON\.parse\(\s*atob\(\s*["']([^"']+)["']\s*\)\s*\)/i.exec(htmlContent);
+        
+        if (realObjMatch) {
+            try {
+                var decodedRealObj = decodeBase64(realObjMatch[1]);
+                if (decodedRealObj) {
+                    oxData = JSON.parse(decodedRealObj);
+                    console.log('PHIMHDCS_DEBUG Found realObj in JS code successfully');
+                }
+            } catch (e) {
+                console.log('PHIMHDCS_DEBUG realObj parse error: ' + e);
+            }
+        }
+
+        // Fallback: extract _0xData from HTML if realObj not found (older behavior or simple movies)
+        if (!oxData) {
+            var dataMatch = /(?:const|let|var)\s+_0xData\s*=\s*(\{[\s\S]*?\})\s*;/.exec(htmlContent);
+            if (dataMatch) {
+                try {
+                    var startIdx = dataMatch.index + dataMatch[0].indexOf('{');
+                    var braceCount = 0;
+                    var jsonEnd = -1;
+                    for (var j = startIdx; j < htmlContent.length && j < startIdx + 100000; j++) {
+                        if (htmlContent[j] === '{') braceCount++;
+                        else if (htmlContent[j] === '}') {
+                            braceCount--;
+                            if (braceCount === 0) { jsonEnd = j + 1; break; }
+                        }
+                    }
+                    if (jsonEnd > 0) {
+                        var jsonStr = htmlContent.substring(startIdx, jsonEnd);
+                        oxData = JSON.parse(jsonStr);
+                        console.log('PHIMHDCS_DEBUG Found fallback _0xData successfully');
+                    }
+                } catch (e) {
+                    console.log('PHIMHDCS_DEBUG _0xData parse error: ' + e);
+                }
+            }
+        }
+
+        if (oxData) {
             // Extract curId (current episode ID)
             var curId = null;
             var curIdPatterns = [
@@ -486,62 +526,81 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 if (m) { curId = m[1]; break; }
             }
 
+            var targetId = curId;
 
-            try {
-                // Balanced brace extraction for proper JSON
-                var startIdx = dataMatch.index + dataMatch[0].indexOf('{');
-                var braceCount = 0;
-                var jsonEnd = -1;
-                for (var j = startIdx; j < htmlContent.length && j < startIdx + 100000; j++) {
-                    if (htmlContent[j] === '{') braceCount++;
-                    else if (htmlContent[j] === '}') {
-                        braceCount--;
-                        if (braceCount === 0) { jsonEnd = j + 1; break; }
+            // Fallback: extract episode ID from page URL (e.g. tap-1-747762 → 747762)
+            if (!targetId && pageUrl) {
+                var urlIdMatch = /(\d{5,})(?:\?|$|#)/.exec(pageUrl);
+                if (!urlIdMatch) urlIdMatch = /-(\d{5,})$/.exec(pageUrl);
+                if (urlIdMatch && oxData[urlIdMatch[1]]) {
+                    targetId = urlIdMatch[1];
+                }
+            }
+
+            // Fallback: use first key of oxData
+            if (!targetId) {
+                var keys = [];
+                for (var k in oxData) { if (oxData.hasOwnProperty(k)) keys.push(k); }
+                if (keys.length > 0) targetId = keys[0];
+            }
+
+            if (targetId && oxData[targetId] && Array.isArray(oxData[targetId])) {
+                var chunks = oxData[targetId];
+                console.log('PHIMHDCS_DEBUG decoding targetId=' + targetId + ', chunks=' + chunks.length + ', salt=' + saltString);
+                var playerUrl = decodeChunksWithSalt(chunks, saltString);
+                console.log('PHIMHDCS_DEBUG decoded playerUrl: ' + playerUrl);
+                
+                if (playerUrl && playerUrl.indexOf('http') === 0) {
+                    var isDirect = playerUrl.indexOf('.m3u8') !== -1 || playerUrl.indexOf('.mp4') !== -1;
+                    if (isDirect) {
+                        return JSON.stringify({
+                            url: playerUrl,
+                            isEmbed: false,
+                            mimeType: "application/x-mpegURL",
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                "Referer": "https://phimhdcss.com/"
+                            },
+                            subtitles: []
+                        });
+                    } else {
+                        return JSON.stringify({
+                            url: playerUrl,
+                            isEmbed: true,
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                "Referer": "https://phimhdcss.com/"
+                            },
+                            subtitles: []
+                        });
                     }
                 }
-                if (jsonEnd > 0) {
-                    var jsonStr = htmlContent.substring(startIdx, jsonEnd);
-                    var oxData = JSON.parse(jsonStr);
-
-                    // Determine which key to use: curId, or extract from pageUrl, or first key
-                    var targetId = curId;
-
-                    // Fallback: extract episode ID from page URL (e.g. tap-1-747762 → 747762)
-                    if (!targetId && pageUrl) {
-                        var urlIdMatch = /(\d{5,})(?:\?|$|#)/.exec(pageUrl);
-                        if (!urlIdMatch) urlIdMatch = /-(\d{5,})$/.exec(pageUrl);
-                        if (urlIdMatch && oxData[urlIdMatch[1]]) {
-                            targetId = urlIdMatch[1];
-                        }
-                    }
-
-                    // Fallback: use first key
-                    if (!targetId) {
-                        var keys = [];
-                        for (var k in oxData) { if (oxData.hasOwnProperty(k)) keys.push(k); }
-                        if (keys.length > 0) targetId = keys[0];
-                    }
-
-                    if (targetId && oxData[targetId] && Array.isArray(oxData[targetId])) {
-                        var chunks = oxData[targetId];
-                        console.log('PHIMHDCS_DEBUG _0xData: targetId=' + targetId + ', chunks=' + chunks.length + ', salt=' + saltString);
-                        var playerUrl = decodeChunksWithSalt(chunks, saltString);
-                        console.log('PHIMHDCS_DEBUG _0xData decoded: ' + playerUrl);
-                        if (playerUrl && playerUrl.indexOf('http') === 0) {
-                            return makeResult(playerUrl);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('PHIMHDCS_DEBUG _0xData parse error: ' + e);
             }
         }
 
-        var currentUrl = (pageUrl && pageUrl.indexOf("http") === 0) ? pageUrl : "https://phimhdcss.com" + (pageUrl || "");
-        return makeResult(currentUrl);
+        // Fallback to static iframe check in case they render it directly
+        var iframeMatch = htmlContent.match(/<iframe[^>]*src="([^"]+)"/i);
+        if (iframeMatch) {
+            var embedUrl = iframeMatch[1];
+            if (embedUrl.indexOf('//') === 0) embedUrl = "https:" + embedUrl;
+            if (embedUrl && embedUrl !== pageUrl && embedUrl.length > 5) {
+                return JSON.stringify({
+                    url: embedUrl,
+                    isEmbed: true,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Referer": "https://phimhdcss.com/"
+                    },
+                    subtitles: []
+                });
+            }
+        }
+
+        // Stop fallback to webpage currentUrl! Return empty player config instead to prevent loading website.
+        return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
 
     } catch (error) {
-        return JSON.stringify({ url: (pageUrl || "https://phimhdcss.com"), headers: {}, subtitles: [] });
+        return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     }
 }
 
