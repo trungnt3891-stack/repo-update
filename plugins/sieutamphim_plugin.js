@@ -1,5 +1,5 @@
 // ========================================================
-// SIÊU TẦM PHIM VAAPP PLUGIN (Code thêm từ bản của bạn ʚʚ Ƭ Ɗųƴ ɞɞ)
+// SIÊU TẦM PHIM
 // ========================================================
 
 const BASE_URL = "https://www.sieutamphim.pro";
