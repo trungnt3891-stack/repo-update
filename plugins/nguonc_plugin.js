@@ -27,7 +27,6 @@ function getHomeSections() {
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'Phim đang chiếu', slug: 'phim-dang-chieu' },
         { name: 'Phim lẻ', slug: 'phim-le' },
         { name: 'Phim bộ', slug: 'phim-bo' },
         { name: 'TV Shows', slug: 'tv-shows' },
