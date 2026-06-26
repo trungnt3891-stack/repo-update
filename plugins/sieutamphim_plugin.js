@@ -12,7 +12,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "sieutamphim",
         "name": "Sưu Tầm Phim",
-        "version": "1.0.6",
+        "version": "1.0.8",
         "baseUrl": "https://www.sieutamphim.pro",
         "iconUrl": "https://www.sieutamphim.pro/posts/2024/06/cropped-logosieutamphim-192x192.png",
         "isEnabled": true,
@@ -325,26 +325,14 @@ function parseDetailResponse(html, url) {
                                               decrypted.indexOf("short.icu") !== -1;
                                 
                                 if (isAbyss) {
-                                    var customJs = "var checkPlay = setInterval(function() { " +
-                                        "var overlay = document.getElementById('overlay'); " +
-                                        "if (overlay) { " +
-                                        "    overlay.click(); " +
-                                        "    clearInterval(checkPlay); " +
-                                        "} " +
-                                        "var playback = document.getElementById('playback'); " +
-                                        "if (playback) { " +
-                                        "    playback.click(); " +
-                                        "    clearInterval(checkPlay); " +
-                                        "} " +
-                                        "}, 500);";
-
+                                    // Tạo trang HTML bọc iframe của abyssplayer để tránh redirect bypass sang abyss.to
+                                    var iframeHtml = '<html><body style="margin:0;padding:0;background:#000;"><iframe src="' + decrypted + '" style="width:100%;height:100%;border:none;" allowfullscreen></iframe></body></html>';
+                                    var base64Url = "data:text/html;base64," + base64Encode(iframeHtml);
+                                    
                                     return JSON.stringify({
-                                        url: decrypted,
+                                        url: base64Url,
                                         isEmbed: true,
-                                        headers: { 
-                                            "Referer": BASE_URL + "/",
-                                            "Custom-Js": customJs
-                                        }
+                                        headers: { "Referer": BASE_URL + "/" }
                                     });
                                 } else {
                                     // Các link khác (như blogger.com) trả về trực tiếp để tránh WebView chặn load data URL
