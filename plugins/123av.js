@@ -4,17 +4,17 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "missav2",
-        "name": "MissAV 2",
-        "version": "1.1.2",
-        "baseUrl": "https://missav123.com",
+        "id": "123av",
+        "name": "123av",
+        "version": "1.0.0",
+        "baseUrl": "https://123av.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico",
         "isEnabled": true,
         "isAdult": true,
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
         "subtitleCat": true,
-        "imageReferer": "https://missav123.com/"
+        "imageReferer": "https://123av.com"
     });
 }
 
