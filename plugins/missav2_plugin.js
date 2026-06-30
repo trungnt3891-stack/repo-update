@@ -8,7 +8,6 @@ function getManifest() {
         "name": "MissAV 2",
         "version": "1.1.2",
         "baseUrl": "https://missav123.com",
-        "fallbackUrls": ["https://missav.media"],
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico",
         "isEnabled": true,
         "isAdult": true,
