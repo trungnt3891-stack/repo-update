@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.7",
+        "version": "1.0.8",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -158,15 +158,15 @@ function getUrlDetail(slug) {
 }
 
 function getUrlCategories() {
-    return "https://phimhdcss.com/the-loai";
+    return "https://phimhdcss.com";
 }
 
 function getUrlCountries() {
-    return "https://phimhdcss.com/quoc-gia";
+    return "https://phimhdcss.com";
 }
 
 function getUrlYears() {
-    return "https://phimhdcss.com/nam";
+    return "https://phimhdcss.com";
 }
 
 // =============================================================================
@@ -387,7 +387,12 @@ function parseMovieDetail(htmlContent) {
                     episodes.reverse();
                 }
 
-                servers.push({ name: serverName, episodes: episodes });
+                var normalizedServerName = serverName.toUpperCase();
+                if (normalizedServerName.indexOf("FHDC") !== -1 || normalizedServerName.indexOf("HDC") !== -1) {
+                    servers.push({ name: serverName, episodes: episodes });
+                } else {
+                    log("Filtering out server: " + serverName + " (non-native)");
+                }
             }
         }
 
@@ -618,7 +623,7 @@ function parseCategoriesResponse(htmlContent) {
         if (filters.category && filters.category.length > 0) return JSON.stringify(filters.category);
 
         var categories = [];
-        var catPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/the-loai\/([^"]+)">([^<]+)<\/a>/gi;
+        var catPattern = /href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
         var match;
         while ((match = catPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
@@ -639,7 +644,7 @@ function parseCountriesResponse(htmlContent) {
         if (filters.country && filters.country.length > 0) return JSON.stringify(filters.country);
 
         var countries = [];
-        var countryPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/quoc-gia\/([^"]+)">([^<]+)<\/a>/gi;
+        var countryPattern = /href="[^"]*\/quoc-gia\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
         var match;
         while ((match = countryPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
