@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "123av",
         "name": "123AV",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "baseUrl": "https://123av.com",
         "referrer": "https://123av.com/",
         "iconUrl": "https://123av.com/assets/123av/favicon.png",
@@ -403,7 +403,7 @@ function parseCategoriesResponse(html) {
         if (!name || name.length < 2) continue;
         
         if (!foundGenres[slug]) {
-            categories.push({ name: name, value: slug });
+            categories.push({ name: name, slug: slug });
             foundGenres[slug] = true;
         }
     }

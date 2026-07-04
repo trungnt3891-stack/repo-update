@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.9",
+        "version": "1.1.1",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -667,54 +667,55 @@ function parseDetailResponse(htmlContent, pageUrl) {
 }
 
 function parseCategoriesResponse(htmlContent) {
-    try {
-        var filters = parseDynamicFilters(htmlContent);
-        if (filters.category && filters.category.length > 0) return JSON.stringify(filters.category);
-
-        var categories = [];
-        var catPattern = /href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-        var match;
-        while ((match = catPattern.exec(htmlContent)) !== null) {
-            var slug = match[1];
-            var name = match[2].trim();
-            var exists = false;
-            for (var i = 0; i < categories.length; i++) {
-                if (categories[i].value === slug) { exists = true; break; }
-            }
-            if (!exists) categories.push({ name: name, value: slug });
-        }
-        return JSON.stringify(categories);
-    } catch (e) { return "[]"; }
+    var categories = [
+        { name: "Huyền Huyễn", slug: "huyen-huyen" },
+        { name: "Tiên Hiệp", slug: "tien-hiep" },
+        { name: "Xuyên Không", slug: "xuyen-khong" },
+        { name: "Cổ Trang", slug: "co-trang" },
+        { name: "Ngôn Tình", slug: "ngon-tinh" },
+        { name: "Đô Thị", slug: "do-thi" },
+        { name: "Khoa Huyễn", slug: "khoa-huyen" },
+        { name: "Võ Hiệp", slug: "vo-hiep" },
+        { name: "Kiếm Hiệp", slug: "kiem-hiep" },
+        { name: "Linh Dị", slug: "linh-di" },
+        { name: "Hài Hước", slug: "hai-huoc" },
+        { name: "Trinh Thám", slug: "trinh-tham" },
+        { name: "Trọng Sinh", slug: "trong-sinh" },
+        { name: "Tu Chân", slug: "tu-chan" },
+        { name: "Điền Viên", slug: "dien-vien" },
+        { name: "Cung Đấu", slug: "cung-dau" },
+        { name: "Huyền Nghi", slug: "huyen-nghi" }
+    ];
+    return JSON.stringify(categories);
 }
 
 function parseCountriesResponse(htmlContent) {
-    try {
-        var filters = parseDynamicFilters(htmlContent);
-        if (filters.country && filters.country.length > 0) return JSON.stringify(filters.country);
-
-        var countries = [];
-        var countryPattern = /href="[^"]*\/quoc-gia\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-        var match;
-        while ((match = countryPattern.exec(htmlContent)) !== null) {
-            var slug = match[1];
-            var name = match[2].trim();
-            var exists = false;
-            for (var i = 0; i < countries.length; i++) {
-                if (countries[i].value === slug) { exists = true; break; }
-            }
-            if (!exists) countries.push({ name: name, value: slug });
-        }
-        return JSON.stringify(countries);
-    } catch (e) { return "[]"; }
+    var countries = [
+        { name: "Trung Quốc", slug: "trung-quoc" },
+        { name: "Hàn Quốc", slug: "han-quoc" },
+        { name: "Nhật Bản", slug: "nhat-ban" },
+        { name: "Singapore", slug: "singapore" },
+        { name: "Việt Nam", slug: "viet-nam" },
+        { name: "Đài Loan", slug: "dai-loan" },
+        { name: "Thái Lan", slug: "thai-lan" },
+        { name: "Âu Mỹ", slug: "au-my" }
+    ];
+    return JSON.stringify(countries);
 }
 
 function parseYearsResponse(htmlContent) {
     try {
         var filters = parseDynamicFilters(htmlContent);
-        if (filters.year && filters.year.length > 0) return JSON.stringify(filters.year);
+        if (filters.year && filters.year.length > 0) {
+            var mapped = [];
+            for (var i = 0; i < filters.year.length; i++) {
+                mapped.push({ name: filters.year[i].name, slug: filters.year[i].value });
+            }
+            return JSON.stringify(mapped);
+        }
 
         var years = [];
-        for (var y = 2026; y >= 2000; y--) years.push({ name: y.toString(), value: y.toString() });
+        for (var y = 2026; y >= 2000; y--) years.push({ name: y.toString(), slug: y.toString() });
         return JSON.stringify(years);
     } catch (e) { return "[]"; }
 }
