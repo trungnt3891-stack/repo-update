@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.1.0",
+        "version": "1.1.2",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -570,16 +570,16 @@ function parseDetailResponse(htmlContent, pageUrl) {
                     return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
                 }
                 
-                // Tìm targetId cho FHDC trước, sau đó HDC
+                // Ưu tiên chọn HDC trước (phát trực tiếp nhanh mượt), rồi mới đến FHDC (dự phòng nhúng)
                 for (var sj = 0; sj < availableServers.length; sj++) {
-                    if (availableServers[sj].label.indexOf("FHDC") !== -1) {
+                    if (availableServers[sj].label.indexOf("HDC") !== -1) {
                         targetId = availableServers[sj].id;
                         break;
                     }
                 }
                 if (!targetId) {
                     for (var sj = 0; sj < availableServers.length; sj++) {
-                        if (availableServers[sj].label.indexOf("HDC") !== -1) {
+                        if (availableServers[sj].label.indexOf("FHDC") !== -1) {
                             targetId = availableServers[sj].id;
                             break;
                         }
