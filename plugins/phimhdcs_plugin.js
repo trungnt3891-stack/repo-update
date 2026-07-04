@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.1.2",
+        "version": "1.0.7",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -158,15 +158,15 @@ function getUrlDetail(slug) {
 }
 
 function getUrlCategories() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/the-loai";
 }
 
 function getUrlCountries() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/quoc-gia";
 }
 
 function getUrlYears() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/nam";
 }
 
 // =============================================================================
@@ -534,61 +534,7 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 if (m) { curId = m[1]; break; }
             }
 
-            // Quét tìm tất cả các server phát có sẵn
-            var availableServers = [];
-            var btnPattern1 = /<[^>]+data-id="(\d+)"[^>]*class="[^"]*streaming-server[^"]*"[^>]*>([\s\S]*?)</gi;
-            var btnPattern2 = /<[^>]+class="[^"]*streaming-server[^"]*"[^>]*data-id="(\d+)"[^>]*>([\s\S]*?)</gi;
-            var sMatch;
-            while ((sMatch = btnPattern1.exec(htmlContent)) !== null) {
-                availableServers.push({ id: sMatch[1], label: sMatch[2].replace(/<[^>]*>/g, "").trim().toUpperCase() });
-            }
-            while ((sMatch = btnPattern2.exec(htmlContent)) !== null) {
-                var idVal = sMatch[1];
-                var labelVal = sMatch[2].replace(/<[^>]*>/g, "").trim().toUpperCase();
-                var exists = false;
-                for (var sj = 0; sj < availableServers.length; sj++) {
-                    if (availableServers[sj].id === idVal) { exists = true; break; }
-                }
-                if (!exists) availableServers.push({ id: idVal, label: labelVal });
-            }
-
-            var targetId = null;
-            if (availableServers.length > 0) {
-                // Check xem có FHDC hay HDC không
-                var hasNativeServer = false;
-                for (var sj = 0; sj < availableServers.length; sj++) {
-                    var lbl = availableServers[sj].label;
-                    if (lbl.indexOf("FHDC") !== -1 || lbl.indexOf("HDC") !== -1) {
-                        hasNativeServer = true;
-                        break;
-                    }
-                }
-                
-                // Nếu KHÔNG CÓ server gốc nào (chỉ có NC, HD...) -> Trả về rỗng (ẩn server)
-                if (!hasNativeServer) {
-                    log("PHIMHDCS_DEBUG: Movie has no native server (FHDC/HDC). Blocking playback.");
-                    return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
-                }
-                
-                // Ưu tiên chọn HDC trước (phát trực tiếp nhanh mượt), rồi mới đến FHDC (dự phòng nhúng)
-                for (var sj = 0; sj < availableServers.length; sj++) {
-                    if (availableServers[sj].label.indexOf("HDC") !== -1) {
-                        targetId = availableServers[sj].id;
-                        break;
-                    }
-                }
-                if (!targetId) {
-                    for (var sj = 0; sj < availableServers.length; sj++) {
-                        if (availableServers[sj].label.indexOf("FHDC") !== -1) {
-                            targetId = availableServers[sj].id;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Fallback nếu không quét được server button hoặc không tìm thấy targetId
-            if (!targetId) targetId = curId;
+            var targetId = curId;
 
             // Fallback: extract episode ID from page URL (e.g. tap-1-747762 → 747762)
             if (!targetId && pageUrl) {
@@ -626,13 +572,11 @@ function parseDetailResponse(htmlContent, pageUrl) {
                             subtitles: []
                         });
                     } else {
-                        var isTiktok = playerUrl.indexOf("tiktok") !== -1;
-                        var ua = isTiktok ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
                         return JSON.stringify({
                             url: playerUrl,
                             isEmbed: true,
                             headers: {
-                                "User-Agent": ua,
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                                 "Referer": "https://phimhdcss.com/"
                             },
                             subtitles: []
@@ -648,13 +592,11 @@ function parseDetailResponse(htmlContent, pageUrl) {
             var embedUrl = iframeMatch[1];
             if (embedUrl.indexOf('//') === 0) embedUrl = "https:" + embedUrl;
             if (embedUrl && embedUrl !== pageUrl && embedUrl.length > 5) {
-                var isTiktok = embedUrl.indexOf("tiktok") !== -1;
-                var ua = isTiktok ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
                 return JSON.stringify({
                     url: embedUrl,
                     isEmbed: true,
                     headers: {
-                        "User-Agent": ua,
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                         "Referer": "https://phimhdcss.com/"
                     },
                     subtitles: []
@@ -671,55 +613,54 @@ function parseDetailResponse(htmlContent, pageUrl) {
 }
 
 function parseCategoriesResponse(htmlContent) {
-    var categories = [
-        { name: "Huyền Huyễn", slug: "huyen-huyen" },
-        { name: "Tiên Hiệp", slug: "tien-hiep" },
-        { name: "Xuyên Không", slug: "xuyen-khong" },
-        { name: "Cổ Trang", slug: "co-trang" },
-        { name: "Ngôn Tình", slug: "ngon-tinh" },
-        { name: "Đô Thị", slug: "do-thi" },
-        { name: "Khoa Huyễn", slug: "khoa-huyen" },
-        { name: "Võ Hiệp", slug: "vo-hiep" },
-        { name: "Kiếm Hiệp", slug: "kiem-hiep" },
-        { name: "Linh Dị", slug: "linh-di" },
-        { name: "Hài Hước", slug: "hai-huoc" },
-        { name: "Trinh Thám", slug: "trinh-tham" },
-        { name: "Trọng Sinh", slug: "trong-sinh" },
-        { name: "Tu Chân", slug: "tu-chan" },
-        { name: "Điền Viên", slug: "dien-vien" },
-        { name: "Cung Đấu", slug: "cung-dau" },
-        { name: "Huyền Nghi", slug: "huyen-nghi" }
-    ];
-    return JSON.stringify(categories);
+    try {
+        var filters = parseDynamicFilters(htmlContent);
+        if (filters.category && filters.category.length > 0) return JSON.stringify(filters.category);
+
+        var categories = [];
+        var catPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/the-loai\/([^"]+)">([^<]+)<\/a>/gi;
+        var match;
+        while ((match = catPattern.exec(htmlContent)) !== null) {
+            var slug = match[1];
+            var name = match[2].trim();
+            var exists = false;
+            for (var i = 0; i < categories.length; i++) {
+                if (categories[i].value === slug) { exists = true; break; }
+            }
+            if (!exists) categories.push({ name: name, value: slug });
+        }
+        return JSON.stringify(categories);
+    } catch (e) { return "[]"; }
 }
 
 function parseCountriesResponse(htmlContent) {
-    var countries = [
-        { name: "Trung Quốc", slug: "trung-quoc" },
-        { name: "Hàn Quốc", slug: "han-quoc" },
-        { name: "Nhật Bản", slug: "nhat-ban" },
-        { name: "Singapore", slug: "singapore" },
-        { name: "Việt Nam", slug: "viet-nam" },
-        { name: "Đài Loan", slug: "dai-loan" },
-        { name: "Thái Lan", slug: "thai-lan" },
-        { name: "Âu Mỹ", slug: "au-my" }
-    ];
-    return JSON.stringify(countries);
+    try {
+        var filters = parseDynamicFilters(htmlContent);
+        if (filters.country && filters.country.length > 0) return JSON.stringify(filters.country);
+
+        var countries = [];
+        var countryPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/quoc-gia\/([^"]+)">([^<]+)<\/a>/gi;
+        var match;
+        while ((match = countryPattern.exec(htmlContent)) !== null) {
+            var slug = match[1];
+            var name = match[2].trim();
+            var exists = false;
+            for (var i = 0; i < countries.length; i++) {
+                if (countries[i].value === slug) { exists = true; break; }
+            }
+            if (!exists) countries.push({ name: name, value: slug });
+        }
+        return JSON.stringify(countries);
+    } catch (e) { return "[]"; }
 }
 
 function parseYearsResponse(htmlContent) {
     try {
         var filters = parseDynamicFilters(htmlContent);
-        if (filters.year && filters.year.length > 0) {
-            var mapped = [];
-            for (var i = 0; i < filters.year.length; i++) {
-                mapped.push({ name: filters.year[i].name, slug: filters.year[i].value });
-            }
-            return JSON.stringify(mapped);
-        }
+        if (filters.year && filters.year.length > 0) return JSON.stringify(filters.year);
 
         var years = [];
-        for (var y = 2026; y >= 2000; y--) years.push({ name: y.toString(), slug: y.toString() });
+        for (var y = 2026; y >= 2000; y--) years.push({ name: y.toString(), value: y.toString() });
         return JSON.stringify(years);
     } catch (e) { return "[]"; }
 }
@@ -727,33 +668,6 @@ function parseYearsResponse(htmlContent) {
 function parseEmbedResponse(htmlContent, url) {
     try {
         log("parseEmbedResponse input url: " + url);
-        
-        // --- XỬ LÝ DÀNH RIÊNG CHO TIKTOK EMBED ---
-        if (url.indexOf("tiktok.phimhdc.com") !== -1) {
-            log("parseEmbedResponse processing TikTok embed URL");
-            var iframeMatch = htmlContent.match(/src="([^"]+edgeplayer\.html[^"]+)"/i) || htmlContent.match(/<iframe[^>]+src="([^"]+)"/i);
-            if (iframeMatch) {
-                var iframeUrl = iframeMatch[1];
-                var keyMatch = iframeUrl.match(/[?&]key=([^&]+)/);
-                if (keyMatch) {
-                    var key = keyMatch[1];
-                    var streamUrl = "https://tiktok.phimhdc.com/video/" + key + "/master.m3u8?delivery=direct";
-                    log("parseEmbedResponse TikTok resolved streamUrl: " + streamUrl);
-                    return JSON.stringify({
-                        url: streamUrl,
-                        isEmbed: false, // Phát trực tiếp luôn
-                        mimeType: "application/x-mpegURL",
-                        headers: {
-                            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
-                            "Referer": "https://tiktok.phimhdc.com/edgeplayer.html?pv=16&key=" + key + "&delivery=direct"
-                        },
-                        subtitles: []
-                    });
-                }
-            }
-            log("parseEmbedResponse TikTok failed to resolve key from iframe");
-            return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
-        }
         
         // --- XỬ LÝ DEPTH 2: Phản hồi từ endpoint getVideo (là JSON string) ---
         if (url.indexOf("do=getVideo") !== -1 || (htmlContent.indexOf("securedLink") !== -1 && htmlContent.indexOf("hls") !== -1)) {
