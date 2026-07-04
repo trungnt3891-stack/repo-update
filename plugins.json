@@ -46,13 +46,13 @@
         {
             "id": "phimhdcs",
             "name": "PhimHDCSS",
-            "version": "1.0.9",
+            "version": "1.1.0",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/phimhdcs_plugin.js",
             "iconUrl": "https://phimhdcss.com/favicon.ico"
         },
         {
             "id": "missav",
-            "name": "MissAV 1",
+            "name": "MissAV",
             "version": "1.1.2",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico"
@@ -60,7 +60,7 @@
         {
             "id": "123av",
             "name": "123AV",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/123av_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico"
         },
