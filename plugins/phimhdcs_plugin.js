@@ -158,15 +158,15 @@ function getUrlDetail(slug) {
 }
 
 function getUrlCategories() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/the-loai";
 }
 
 function getUrlCountries() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/quoc-gia";
 }
 
 function getUrlYears() {
-    return "https://phimhdcss.com";
+    return "https://phimhdcss.com/nam";
 }
 
 // =============================================================================
@@ -387,12 +387,7 @@ function parseMovieDetail(htmlContent) {
                     episodes.reverse();
                 }
 
-                var normalizedServerName = serverName.toUpperCase();
-                if (normalizedServerName.indexOf("FHDC") !== -1 || normalizedServerName.indexOf("HDC") !== -1) {
-                    servers.push({ name: serverName, episodes: episodes });
-                } else {
-                    log("Filtering out server: " + serverName + " (non-native)");
-                }
+                servers.push({ name: serverName, episodes: episodes });
             }
         }
 
@@ -623,7 +618,7 @@ function parseCategoriesResponse(htmlContent) {
         if (filters.category && filters.category.length > 0) return JSON.stringify(filters.category);
 
         var categories = [];
-        var catPattern = /href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+        var catPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/the-loai\/([^"]+)">([^<]+)<\/a>/gi;
         var match;
         while ((match = catPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
@@ -644,7 +639,7 @@ function parseCountriesResponse(htmlContent) {
         if (filters.country && filters.country.length > 0) return JSON.stringify(filters.country);
 
         var countries = [];
-        var countryPattern = /href="[^"]*\/quoc-gia\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+        var countryPattern = /<a[^>]+href="https:\/\/phimhdcss\.com\/quoc-gia\/([^"]+)">([^<]+)<\/a>/gi;
         var match;
         while ((match = countryPattern.exec(htmlContent)) !== null) {
             var slug = match[1];
