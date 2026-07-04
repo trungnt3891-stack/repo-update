@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.0.9",
+        "version": "1.1.2",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -626,11 +626,13 @@ function parseDetailResponse(htmlContent, pageUrl) {
                             subtitles: []
                         });
                     } else {
+                        var isTiktok = playerUrl.indexOf("tiktok") !== -1;
+                        var ua = isTiktok ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
                         return JSON.stringify({
                             url: playerUrl,
                             isEmbed: true,
                             headers: {
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                "User-Agent": ua,
                                 "Referer": "https://phimhdcss.com/"
                             },
                             subtitles: []
@@ -646,11 +648,13 @@ function parseDetailResponse(htmlContent, pageUrl) {
             var embedUrl = iframeMatch[1];
             if (embedUrl.indexOf('//') === 0) embedUrl = "https:" + embedUrl;
             if (embedUrl && embedUrl !== pageUrl && embedUrl.length > 5) {
+                var isTiktok = embedUrl.indexOf("tiktok") !== -1;
+                var ua = isTiktok ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
                 return JSON.stringify({
                     url: embedUrl,
                     isEmbed: true,
                     headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "User-Agent": ua,
                         "Referer": "https://phimhdcss.com/"
                     },
                     subtitles: []

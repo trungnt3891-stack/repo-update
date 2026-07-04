@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "123av",
         "name": "123AV",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "baseUrl": "https://123av.com",
         "referrer": "https://123av.com/",
         "iconUrl": "https://123av.com/assets/123av/favicon.png",
@@ -106,6 +106,8 @@ function getUrlSearch(keyword, filtersJson) {
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
+    if (slug.indexOf("en/v/") === 0) return "https://123av.com/" + slug;
+    if (slug.indexOf("/en/v/") === 0) return "https://123av.com" + slug;
     if (slug.indexOf("v/") === 0) return "https://123av.com/en/" + slug;
     if (slug.indexOf("/v/") === 0) return "https://123av.com/en" + slug;
     return "https://123av.com/en/v/" + slug;
