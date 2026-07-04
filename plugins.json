@@ -39,7 +39,7 @@
         {
             "id": "sieutamphim",
             "name": "Sưu Tầm Phim",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sieutamphim_plugin.js",
             "iconUrl": "https://www.sieutamphim.pro/posts/2024/06/cropped-logosieutamphim-192x192.png"
         },
@@ -60,7 +60,7 @@
         {
             "id": "123av",
             "name": "123AV",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/123av_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico"
         },
