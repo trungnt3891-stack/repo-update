@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "phimhdcs",
         "name": "PhimHDCS",
-        "version": "1.1.1",
+        "version": "1.1.2",
         "baseUrl": "https://phimhdcss.com",
         "iconUrl": "https://phimhdcss.com/favicon.ico",
         "isEnabled": true,
@@ -727,6 +727,33 @@ function parseYearsResponse(htmlContent) {
 function parseEmbedResponse(htmlContent, url) {
     try {
         log("parseEmbedResponse input url: " + url);
+        
+        // --- XỬ LÝ DÀNH RIÊNG CHO TIKTOK EMBED ---
+        if (url.indexOf("tiktok.phimhdc.com") !== -1) {
+            log("parseEmbedResponse processing TikTok embed URL");
+            var iframeMatch = htmlContent.match(/src="([^"]+edgeplayer\.html[^"]+)"/i) || htmlContent.match(/<iframe[^>]+src="([^"]+)"/i);
+            if (iframeMatch) {
+                var iframeUrl = iframeMatch[1];
+                var keyMatch = iframeUrl.match(/[?&]key=([^&]+)/);
+                if (keyMatch) {
+                    var key = keyMatch[1];
+                    var streamUrl = "https://tiktok.phimhdc.com/video/" + key + "/master.m3u8?delivery=direct";
+                    log("parseEmbedResponse TikTok resolved streamUrl: " + streamUrl);
+                    return JSON.stringify({
+                        url: streamUrl,
+                        isEmbed: false, // Phát trực tiếp luôn
+                        mimeType: "application/x-mpegURL",
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+                            "Referer": "https://tiktok.phimhdc.com/edgeplayer.html?pv=16&key=" + key + "&delivery=direct"
+                        },
+                        subtitles: []
+                    });
+                }
+            }
+            log("parseEmbedResponse TikTok failed to resolve key from iframe");
+            return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+        }
         
         // --- XỬ LÝ DEPTH 2: Phản hồi từ endpoint getVideo (là JSON string) ---
         if (url.indexOf("do=getVideo") !== -1 || (htmlContent.indexOf("securedLink") !== -1 && htmlContent.indexOf("hls") !== -1)) {
