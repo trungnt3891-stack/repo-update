@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "123av",
         "name": "123AV",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "baseUrl": "https://123av.com",
         "referrer": "https://123av.com/",
         "iconUrl": "https://123av.com/assets/123av/favicon.png",
