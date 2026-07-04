@@ -134,9 +134,10 @@ var PluginUtils = {
             .trim();
     },
     getMeta: function (html, property) {
-        var regex = new RegExp('property="' + property + '"\\s+content="([^"]+)"', 'i');
-        var match = html.match(regex);
-        return match ? match[1] : "";
+        var regex1 = new RegExp('(?:property|name)=["\']' + property + '["\'][^>]*content=(["\'])(.*?)\\1', 'i');
+        var regex2 = new RegExp('content=(["\'])(.*?)\\1[^>]*(?:property|name)=["\']' + property + '["\']', 'i');
+        var match = html.match(regex1) || html.match(regex2);
+        return match ? match[2] : "";
     },
     decodePlayerJson: function (escapedStr) {
         try {
@@ -296,6 +297,20 @@ function parseMovieDetail(htmlContent) {
         var title = PluginUtils.getMeta(htmlContent, "og:title") || "";
         var thumb = PluginUtils.getMeta(htmlContent, "og:image") || "";
         var desc = PluginUtils.getMeta(htmlContent, "og:description") || "";
+        
+        // Trích xuất ảnh bìa phim thật (cover.jpg) từ background-image của player
+        var coverMatch = htmlContent.match(/style="background-image:url\(['"]?([^'")]+cover\.jpg[^'")]+)['"]?\)"/i) ||
+                         htmlContent.match(/background-image:url\(['"]?([^'")]+cover\.jpg[^'")]+)['"]?\)/i) ||
+                         htmlContent.match(/src="([^"]+cover\.jpg[^"]*)"/i);
+        if (coverMatch) {
+            thumb = coverMatch[1];
+        } else if (thumb.indexOf("logo-square.png") !== -1 || thumb.indexOf("logo") !== -1) {
+            // Tìm kiếm URL ảnh cover bất kỳ
+            var coverGenericMatch = htmlContent.match(/https?:\/\/[^\s"'><]+?\/cover\.jpg[^\s"'><]*/i);
+            if (coverGenericMatch) {
+                thumb = coverGenericMatch[0];
+            }
+        }
         
         // Extract release year from release date
         var releaseMatch = htmlContent.match(/<dt>Release date<\/dt>\s*<dd>([^<]+)<\/dd>/i);

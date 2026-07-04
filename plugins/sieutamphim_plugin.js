@@ -12,7 +12,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "sieutamphim",
         "name": "Sưu Tầm Phim",
-        "version": "1.0.7",
+        "version": "1.0.8",
         "baseUrl": "https://www.sieutamphim.pro",
         "iconUrl": "https://www.sieutamphim.pro/posts/2024/06/cropped-logosieutamphim-192x192.png",
         "isEnabled": true,
@@ -196,12 +196,33 @@ function parseMovieDetail(html, url) {
             contentHtml = post.content ? post.content.rendered : "";
             
             description = post.excerpt ? post.excerpt.rendered.replace(/<[^>]*>/g, "").trim() : "";
-            var imgMatch = contentHtml.match(/<img[^>]*src="([^"]+)"/i);
-            poster = imgMatch ? imgMatch[1] : "";
+            
+            // Cải tiến lấy ảnh bìa Featured Image của WordPress API
+            if (post.jetpack_featured_media_url) {
+                poster = post.jetpack_featured_media_url;
+            } else if (post.featured_media_src_url) {
+                poster = post.featured_media_src_url;
+            } else if (post.yoast_head_json && post.yoast_head_json.og_image && post.yoast_head_json.og_image.length > 0) {
+                poster = post.yoast_head_json.og_image[0].url;
+            } else {
+                var imgMatch = contentHtml.match(/<img[^>]*src="([^"]+)"/i);
+                poster = imgMatch ? imgMatch[1] : "";
+            }
             log("Parsed Title from WP API: " + title + " (PostID: " + postId + ")");
         } else {
             title = (html.match(/<meta property="og:title" content="([^"]+)"/i) || [])[1] || "";
-            poster = (html.match(/<meta property="og:image" content="([^"]+)"/i) || [])[1] || "";
+            
+            // Cải tiến regex để quét meta og:image linh hoạt bất kể thứ tự content/property
+            var ogImageMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i) || 
+                               html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i) ||
+                               html.match(/<meta[^>]+name="twitter:image"[^>]+content="([^"]+)"/i);
+            poster = ogImageMatch ? ogImageMatch[1] : "";
+            
+            if (!poster) {
+                var fallbackImgMatch = html.match(/<img[^>]+(?:src|data-src)="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i);
+                if (fallbackImgMatch) poster = fallbackImgMatch[1];
+            }
+            
             description = (html.match(/<meta property="og:description" content="([^"]+)"/i) || [])[1] || "";
             movieUrl = (html.match(/<meta property="og:url" content="([^"]+)"/i) || [])[1] || url;
             
