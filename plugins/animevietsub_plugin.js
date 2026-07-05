@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.3",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -130,29 +130,15 @@ function getUrlYears() { return "https://animevietsub.love"; }
 function parseListResponse(htmlContent) {
     try {
         var movies = [];
-        // Regex bóc tách từng thẻ div class="TPost B" hoặc "TPost"
-        var itemPattern = /<div class="TPost[^"]*">([\s\S]*?)<\/div>\s*<\/div>/gi;
-        var match;
+        var seen = {};
 
-        while ((match = itemPattern.exec(htmlContent)) !== null) {
-            var cardHtml = match[1];
-
-            var linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
-            if (!linkMatch) continue;
-
-            var epMatch = /<span class="mli-eps">[\s\S]*?<i>([^<]+)<\/i>/i.exec(cardHtml);
-            var episode_current = epMatch ? "Tập " + epMatch[1].trim() : "";
-
-            var imgMatch = /<img[^>]*(?:src|data-src)="([^"]+)"/i.exec(cardHtml);
-            var posterUrl = imgMatch ? imgMatch[1] : "";
-
-            var titleMatch = /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
-            var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : linkMatch[2];
-
-            var fullTitle = linkMatch[2];
-            var year = 0;
-            var yearMatch = /\((\d{4})\)/.exec(fullTitle);
-            if (yearMatch) year = parseInt(yearMatch[1]);
+        // Helper: extract movie from card HTML
+        function extractMovie(cardHtml) {
+            var linkMatch = /<a\s+[^>]*href="([^"]*\/phim\/[^"]+)"[^>]*(?:title="([^"]+)")?/i.exec(cardHtml);
+            if (!linkMatch) {
+                linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
+            }
+            if (!linkMatch) return null;
 
             var href = linkMatch[1];
             var slug = href;
@@ -162,8 +148,28 @@ function parseListResponse(htmlContent) {
             } else {
                 slug = href.substring(href.lastIndexOf('/') + 1) || href;
             }
+            // Loại bỏ trailing slash
+            slug = slug.replace(/\/$/, '');
+            if (seen[slug]) return null;
+            seen[slug] = true;
 
-            movies.push({
+            var epMatch = /<span class="mli-eps">[\s\S]*?<i>([^<]+)<\/i>/i.exec(cardHtml);
+            var episode_current = epMatch ? "Tập " + epMatch[1].trim() : "";
+
+            var imgMatch = /<img[^>]*(?:src|data-src)="([^"]+)"/i.exec(cardHtml);
+            var posterUrl = imgMatch ? imgMatch[1] : "";
+
+            // Title: h2.Title hoặc div.Title hoặc fallback title attribute
+            var titleMatch = /<h2[^>]*class="Title"[^>]*>([\s\S]*?)<\/h2>/i.exec(cardHtml)
+                || /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
+            var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : (linkMatch[2] || "");
+
+            var year = 0;
+            var yearMatch = /<span class="Date[^"]*">\s*(\d{4})\s*<\/span>/i.exec(cardHtml)
+                || /\((\d{4})\)/.exec(title);
+            if (yearMatch) year = parseInt(yearMatch[1]);
+
+            return {
                 id: slug,
                 title: title,
                 posterUrl: posterUrl,
@@ -172,7 +178,36 @@ function parseListResponse(htmlContent) {
                 quality: "FHD",
                 episode_current: episode_current,
                 lang: "Vietsub"
-            });
+            };
+        }
+
+        // Pattern 1: <article class="TPost C ..."> (trang danh mục)
+        var articlePattern = /<article class="TPost[^"]*">[\s\S]*?<\/article>/gi;
+        var match;
+        while ((match = articlePattern.exec(htmlContent)) !== null) {
+            var movie = extractMovie(match[0]);
+            if (movie) movies.push(movie);
+        }
+
+        // Pattern 2: <li> trong <ul class="MovieList Newepisode"> (trang chủ)
+        if (movies.length === 0) {
+            var listBlock = /<ul class="MovieList Newepisode">[\s\S]*?<\/ul>/i.exec(htmlContent);
+            if (listBlock) {
+                var liPattern = /<li>[\s\S]*?<\/li>/gi;
+                while ((match = liPattern.exec(listBlock[0])) !== null) {
+                    var movie = extractMovie(match[0]);
+                    if (movie) movies.push(movie);
+                }
+            }
+        }
+
+        // Pattern 3: Fallback - <div class="TPost B"> (sidebar cards)
+        if (movies.length === 0) {
+            var divPattern = /<div class="TPost[^"]*">[\s\S]*?<\/div>\s*<\/div>/gi;
+            while ((match = divPattern.exec(htmlContent)) !== null) {
+                var movie = extractMovie(match[0]);
+                if (movie) movies.push(movie);
+            }
         }
 
         // Parse phân trang
@@ -395,15 +430,37 @@ function parseDetailResponse(htmlContent, pageUrl) {
 }
 
 function parseEmbedResponse(htmlContent, url) {
-    return JSON.stringify({
-        url: url,
-        isEmbed: true,
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://animevietsub.love/"
-        },
-        subtitles: []
-    });
+    try {
+        // Thử trích xuất direct HLS stream từ player page
+        var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
+        if (m3u8Match) {
+            log("Found m3u8 stream: " + m3u8Match[1]);
+            return JSON.stringify({
+                url: m3u8Match[1],
+                isEmbed: false,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer": "https://animevietsub.love/"
+                },
+                subtitles: []
+            });
+        }
+
+        // Không tìm thấy m3u8 → trả embed với Block-Scripts chặn avs-shield
+        return JSON.stringify({
+            url: url,
+            isEmbed: true,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://animevietsub.love/",
+                "Block-Scripts": "avs-shield"
+            },
+            subtitles: []
+        });
+    } catch (e) {
+        log("parseEmbedResponse error: " + e.message);
+        return JSON.stringify({ url: url, isEmbed: true, headers: {}, subtitles: [] });
+    }
 }
 
 // =============================================================================
