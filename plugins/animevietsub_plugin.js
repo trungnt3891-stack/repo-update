@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.2",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -313,8 +313,10 @@ function parseMovieDetail(htmlContent) {
         }
 
         // Tạo extra url để tải đầy đủ tập từ trang xem-phim
+        // Kiểm tra bằng canonical URL (biến id) thay vì search toàn HTML vì trang
+        // detail có nav link chứa chuỗi "xem-phim" gây nhận nhầm.
         var extra = "";
-        var isPlayPage = htmlContent.indexOf("window.PLAYER_DATA") > -1 || htmlContent.indexOf("xem-phim") > -1;
+        var isPlayPage = (id && id.indexOf("xem-phim") > -1) || htmlContent.indexOf("window.PLAYER_DATA") > -1;
         if (!isPlayPage && slug && slug !== "error") {
             extra = "https://animevietsub.love/phim/" + slug + "/xem-phim.html";
         }
@@ -368,17 +370,18 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // Lách luật Frame-Only: Nhúng URL player thực tế vào một thẻ iframe của tài liệu HTML ảo
-            var iframeHtml = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background-color:#000;}iframe{border:none;width:100%;height:100%;}</style></head><body><iframe src='" + link + "' allowfullscreen></iframe></body></html>";
-            
-            var dataUrl = "data:text/html;charset=utf-8," + encodeURIComponent(iframeHtml);
+            // Bypass anti-frame: inject Custom-Js để override window.top check
+            // Script avs-shield.min.js kiểm tra window.self === window.top
+            // Ta dùng Object.defineProperty ghi đè window.top = window.self
+            var bypassJs = "try{Object.defineProperty(window,'top',{get:function(){return window.self}});}catch(e){}";
             
             return JSON.stringify({
-                url: dataUrl,
-                isEmbed: true, // Chạy dưới dạng Embed WebView để phát trực tiếp
+                url: link,
+                isEmbed: true,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": "https://animevietsub.love/"
+                    "Referer": "https://animevietsub.love/",
+                    "Custom-Js": bypassJs
                 },
                 subtitles: []
             });
@@ -402,3 +405,49 @@ function parseEmbedResponse(htmlContent, url) {
         subtitles: []
     });
 }
+
+// =============================================================================
+// CATEGORIES
+// =============================================================================
+
+function parseCategoriesResponse(htmlContent) {
+    try {
+        var categories = [];
+        // Parse menu thể loại từ trang chủ
+        var menuBlock = /<ul class="sub-menu[^"]*">([\s\S]*?)<\/ul>/i.exec(htmlContent);
+        if (menuBlock) {
+            var catPattern = /<a\s+href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+            var catMatch;
+            while ((catMatch = catPattern.exec(menuBlock[1])) !== null) {
+                var catSlug = catMatch[1].replace(/\//g, "");
+                var catName = catMatch[2].trim();
+                if (catSlug && catName) {
+                    categories.push({ name: catName, slug: catSlug });
+                }
+            }
+        }
+        // Fallback: quét toàn trang nếu không tìm thấy trong submenu
+        if (categories.length === 0) {
+            var fallbackPattern = /<a\s+href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+            var fbMatch;
+            while ((fbMatch = fallbackPattern.exec(htmlContent)) !== null) {
+                var fbSlug = fbMatch[1].replace(/\//g, "");
+                var fbName = fbMatch[2].trim();
+                var exists = false;
+                for (var i = 0; i < categories.length; i++) {
+                    if (categories[i].slug === fbSlug) { exists = true; break; }
+                }
+                if (!exists && fbSlug && fbName) {
+                    categories.push({ name: fbName, slug: fbSlug });
+                }
+            }
+        }
+        return JSON.stringify(categories);
+    } catch (e) {
+        log("parseCategoriesResponse error: " + e.message);
+        return "[]";
+    }
+}
+
+function parseCountriesResponse(htmlContent) { return "[]"; }
+function parseYearsResponse(htmlContent) { return "[]"; }
