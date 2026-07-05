@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.5",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -412,7 +412,7 @@ function parseDetailResponse(htmlContent, pageUrl) {
             
             return JSON.stringify({
                 url: link,
-                isEmbed: true,
+                isEmbed: false,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Referer": pageUrl || "https://animevietsub.love/",
@@ -453,7 +453,7 @@ function parseEmbedResponse(htmlContent, url) {
 
         return JSON.stringify({
             url: url,
-            isEmbed: true,
+            isEmbed: false,
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Referer": referer,
