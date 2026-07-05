@@ -203,6 +203,9 @@ function parseSearchResponse(htmlContent) {
 
 function parseMovieDetail(htmlContent) {
     try {
+        var idMatch = /<link\s+rel="canonical"\s+href="([^"]+)"/i.exec(htmlContent) || /<meta\s+property="og:url"\s+content="([^"]+)"/i.exec(htmlContent);
+        var id = idMatch ? idMatch[1] : "";
+
         var titleMatch = /<h1[^>]* itemprop="name">([\s\S]*?)<\/h1>/i.exec(htmlContent) || /<h1 class="title">([\s\S]*?)<\/h1>/i.exec(htmlContent);
         var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "";
 
@@ -235,6 +238,15 @@ function parseMovieDetail(htmlContent) {
         var year = 0;
         var yearMatch = /<li>\s*<span class="info-title">Năm phát hành:<\/span>[\s\S]*?<a[^>]*>(\d{4})<\/a>/i.exec(htmlContent) || /Season:[\s\S]*?- (\d{4})/i.exec(htmlContent);
         if (yearMatch) year = parseInt(yearMatch[1]);
+
+        var statusMatch = /<li>\s*<span class="info-title">Trạng thái:<\/span>\s*([\s\S]*?)<\/li>/i.exec(htmlContent);
+        var status = statusMatch ? statusMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+
+        var episode_current = "";
+        if (status) {
+            var epMatch2 = /(Tập \d+|Full|Hoàn Tất)/i.exec(status);
+            if (epMatch2) episode_current = epMatch2[1];
+        }
 
         // Parse danh sách tập phim
         var episodes = [];
@@ -273,19 +285,30 @@ function parseMovieDetail(htmlContent) {
             });
         }
 
+        // Trích xuất id phim từ canonical url hoặc gán mặc định nếu không thấy
+        if (!id) {
+            var slugMatch = /\/phim\/([^/]+)/.exec(htmlContent);
+            id = slugMatch ? "https://animevietsub.love/phim/" + slugMatch[1] : "https://animevietsub.love/";
+        }
+
         return JSON.stringify({
+            id: id,
             title: title,
             posterUrl: posterUrl,
             backdropUrl: posterUrl,
             description: description,
             year: year,
-            genres: genres,
-            countries: countries,
-            servers: servers
+            servers: servers,
+            episode_current: episode_current,
+            lang: "Vietsub",
+            quality: "FHD",
+            category: genres.join(", "),
+            country: countries.join(", "),
+            status: status
         });
     } catch (e) {
         log("parseMovieDetail error: " + e.message);
-        return JSON.stringify({ title: "", servers: [] });
+        return JSON.stringify({ id: "error", title: "", servers: [] });
     }
 }
 
