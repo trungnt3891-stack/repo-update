@@ -1,0 +1,347 @@
+// =============================================================================
+// CONFIGURATION & METADATA
+// =============================================================================
+
+function getManifest() {
+    return JSON.stringify({
+        "id": "animevietsub",
+        "name": "AnimeVietSub",
+        "version": "1.0.0",
+        "baseUrl": "https://animevietsub.love",
+        "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
+        "isEnabled": true,
+        "type": "MOVIE",
+        "playerType": "embed"
+    });
+}
+
+function getHomeSections() {
+    return JSON.stringify([
+        { slug: 'anime-moi-cap-nhat', title: 'Anime Mới Cập Nhật', type: 'Grid', path: '/' },
+        { slug: 'anime-bo', title: 'Anime Bộ', type: 'Horizontal', path: 'anime-bo' },
+        { slug: 'anime-le', title: 'Anime Lẻ/Movie', type: 'Horizontal', path: 'anime-le' },
+        { slug: 'hoat-hinh-trung-quoc', title: 'HH Trung Quốc', type: 'Horizontal', path: 'hoat-hinh-trung-quoc' },
+        { slug: 'anime-sap-chieu', title: 'Anime Sắp Chiếu', type: 'Horizontal', path: 'anime-sap-chieu' }
+    ]);
+}
+
+function getPrimaryCategories() {
+    return JSON.stringify([
+        { name: 'Anime Bộ', slug: 'anime-bo' },
+        { name: 'Anime Lẻ', slug: 'anime-le' },
+        { name: 'HH Trung Quốc', slug: 'hoat-hinh-trung-quoc' },
+        { name: 'Anime Sắp Chiếu', slug: 'anime-sap-chieu' },
+        { name: 'Hành Động', slug: 'the-loai/hanh-dong' },
+        { name: 'Phiêu Lưu', slug: 'the-loai/phieu-luu' },
+        { name: 'Hài Hước', slug: 'the-loai/hai-huoc' },
+        { name: 'Phép Thuật', slug: 'the-loai/phep-thuat' }
+    ]);
+}
+
+function getFilterConfig() {
+    return JSON.stringify({
+        sort: [
+            { name: 'Mới cập nhật', value: 'latest' },
+            { name: 'Lượt xem', value: 'view' },
+            { name: 'Bình chọn', value: 'rating' }
+        ]
+    });
+}
+
+// Helper log
+function log(msg) {
+    if (typeof console !== 'undefined' && console.log) {
+        console.log("[AnimeVsubPlugin] " + msg);
+    }
+}
+
+// =============================================================================
+// URL GENERATION
+// =============================================================================
+
+function getUrlList(slug, filtersJson) {
+    try {
+        var filters = JSON.parse(filtersJson || "{}");
+        var page = filters.page || 1;
+        var sort = filters.sort || "latest";
+
+        var targetSlug = slug;
+        if (filters.category) {
+            targetSlug = "the-loai/" + filters.category;
+        }
+
+        // Clean slug
+        if (targetSlug.startsWith("/")) targetSlug = targetSlug.substring(1);
+        if (targetSlug.endsWith("/")) targetSlug = targetSlug.substring(0, targetSlug.length - 1);
+
+        var baseUrl = "https://animevietsub.love";
+        
+        // Handle Trang chủ (phim mới cập nhật)
+        if (targetSlug === 'anime-moi-cap-nhat' || targetSlug === '') {
+            if (page === 1) return baseUrl + "/";
+            return baseUrl + "/anime-moi-cap-nhat/trang-" + page + ".html";
+        }
+
+        // Handle path format
+        if (page === 1) {
+            return baseUrl + "/" + targetSlug + "/";
+        } else {
+            return baseUrl + "/" + targetSlug + "/trang-" + page + ".html";
+        }
+    } catch (e) {
+        return "https://animevietsub.love/";
+    }
+}
+
+function getUrlSearch(keyword, filtersJson) {
+    try {
+        var filters = JSON.parse(filtersJson || "{}");
+        var page = filters.page || 1;
+        var cleanKeyword = encodeURIComponent(keyword.trim());
+        
+        if (page === 1) {
+            return "https://animevietsub.love/tim-kiem/" + cleanKeyword + "/";
+        } else {
+            return "https://animevietsub.love/tim-kiem/" + cleanKeyword + "/trang-" + page + ".html";
+        }
+    } catch (e) {
+        return "https://animevietsub.love/";
+    }
+}
+
+function getUrlDetail(slug) {
+    if (slug.indexOf("http") === 0) return slug;
+    // Clean slug
+    var cleanSlug = slug;
+    if (cleanSlug.startsWith("/")) cleanSlug = cleanSlug.substring(1);
+    if (cleanSlug.startsWith("phim/")) cleanSlug = cleanSlug.substring(5);
+    
+    return "https://animevietsub.love/phim/" + cleanSlug;
+}
+
+function getUrlCategories() { return "https://animevietsub.love"; }
+function getUrlCountries() { return "https://animevietsub.love"; }
+function getUrlYears() { return "https://animevietsub.love"; }
+
+// =============================================================================
+// PARSERS
+// =============================================================================
+
+function parseListResponse(htmlContent) {
+    try {
+        var movies = [];
+        // Regex bóc tách từng thẻ div class="TPost B" hoặc "TPost"
+        var itemPattern = /<div class="TPost[^"]*">([\s\S]*?)<\/div>\s*<\/div>/gi;
+        var match;
+
+        while ((match = itemPattern.exec(htmlContent)) !== null) {
+            var cardHtml = match[1];
+
+            var linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
+            if (!linkMatch) continue;
+
+            var epMatch = /<span class="mli-eps">[\s\S]*?<i>([^<]+)<\/i>/i.exec(cardHtml);
+            var episode_current = epMatch ? "Tập " + epMatch[1].trim() : "";
+
+            var imgMatch = /<img[^>]*(?:src|data-src)="([^"]+)"/i.exec(cardHtml);
+            var posterUrl = imgMatch ? imgMatch[1] : "";
+
+            var titleMatch = /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
+            var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : linkMatch[2];
+
+            var fullTitle = linkMatch[2];
+            var year = 0;
+            var yearMatch = /\((\d{4})\)/.exec(fullTitle);
+            if (yearMatch) year = parseInt(yearMatch[1]);
+
+            movies.push({
+                id: linkMatch[1],
+                title: title,
+                posterUrl: posterUrl,
+                backdropUrl: posterUrl,
+                year: year,
+                quality: "FHD",
+                episode_current: episode_current,
+                lang: "Vietsub"
+            });
+        }
+
+        // Parse phân trang
+        var totalPages = 1;
+        var lastPageMatch = /href="[^"]*trang-(\d+)\.html"[^>]*>Trang Cuối<\/a>/i.exec(htmlContent);
+        if (lastPageMatch) {
+            totalPages = parseInt(lastPageMatch[1]);
+        } else {
+            var pagePattern = /class="page[^"]*">(\d+)<\/a>/gi;
+            var pMatch;
+            while ((pMatch = pagePattern.exec(htmlContent)) !== null) {
+                var pNum = parseInt(pMatch[1]);
+                if (pNum > totalPages) totalPages = pNum;
+            }
+        }
+
+        var currentPage = 1;
+        var curPageMatch = /class="[^"]*current[^"]*">(\d+)<\/span>/i.exec(htmlContent);
+        if (curPageMatch) currentPage = parseInt(curPageMatch[1]);
+
+        return JSON.stringify({
+            items: movies,
+            pagination: {
+                currentPage: currentPage,
+                totalPages: totalPages
+            }
+        });
+    } catch (e) {
+        log("parseListResponse error: " + e.message);
+        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
+    }
+}
+
+function parseSearchResponse(htmlContent) {
+    return parseListResponse(htmlContent);
+}
+
+function parseMovieDetail(htmlContent) {
+    try {
+        var titleMatch = /<h1[^>]* itemprop="name">([\s\S]*?)<\/h1>/i.exec(htmlContent) || /<h1 class="title">([\s\S]*?)<\/h1>/i.exec(htmlContent);
+        var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+
+        var descMatch = /<div class="Description[^"]*" itemprop="description">([\s\S]*?)<\/div>/i.exec(htmlContent) || /<div id="film-info-desc"[^>]*>([\s\S]*?)<\/div>/i.exec(htmlContent);
+        var description = descMatch ? descMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+
+        var posterMatch = /<img[^>]*class="[^"]*attachment-img-mov-md[^"]*"[^>]*(?:src|data-src)="([^"]+)"/i.exec(htmlContent) || /<img class="poster"[^>]*(?:src|data-src)="([^"]+)"/i.exec(htmlContent);
+        var posterUrl = posterMatch ? posterMatch[1] : "";
+
+        var genres = [];
+        var genreBlockMatch = /<li>\s*<span class="info-title">Thể loại:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent) || /Thể loại:([\s\S]*?)(?:<br|<\/li>)/i.exec(htmlContent);
+        if (genreBlockMatch) {
+            var genreMatch;
+            var genrePattern = /<a[^>]*>([^<]+)<\/a>/gi;
+            while ((genreMatch = genrePattern.exec(genreBlockMatch[1])) !== null) {
+                genres.push(genreMatch[1].trim());
+            }
+        }
+
+        var countries = [];
+        var countryBlockMatch = /<li>\s*<span class="info-title">Quốc gia:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent);
+        if (countryBlockMatch) {
+            var countryMatch;
+            var countryPattern = /<a[^>]*>([^<]+)<\/a>/gi;
+            while ((countryMatch = countryPattern.exec(countryBlockMatch[1])) !== null) {
+                countries.push(countryMatch[1].trim());
+            }
+        }
+
+        var year = 0;
+        var yearMatch = /<li>\s*<span class="info-title">Năm phát hành:<\/span>[\s\S]*?<a[^>]*>(\d{4})<\/a>/i.exec(htmlContent) || /Season:[\s\S]*?- (\d{4})/i.exec(htmlContent);
+        if (yearMatch) year = parseInt(yearMatch[1]);
+
+        // Parse danh sách tập phim
+        var episodes = [];
+        var epPattern = /<a[^>]*class="[^"]*(?:btn-episode|episode-link)[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        var epMatch;
+        while ((epMatch = epPattern.exec(htmlContent)) !== null) {
+            var epUrl = epMatch[1];
+            var epName = epMatch[2].replace(/<[^>]*>/g, "").trim();
+            
+            if (epUrl.indexOf('http') !== 0) {
+                epUrl = "https://animevietsub.love" + (epUrl.startsWith('/') ? '' : '/') + epUrl;
+            }
+            
+            // Tránh add trùng tập
+            var isDuplicate = false;
+            for (var i = 0; i < episodes.length; i++) {
+                if (episodes[i].id === epUrl) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                episodes.push({
+                    id: epUrl,
+                    name: epName,
+                    slug: epUrl
+                });
+            }
+        }
+
+        var servers = [];
+        if (episodes.length > 0) {
+            servers.push({
+                name: "AnimeVsub",
+                episodes: episodes
+            });
+        }
+
+        return JSON.stringify({
+            title: title,
+            posterUrl: posterUrl,
+            backdropUrl: posterUrl,
+            description: description,
+            year: year,
+            genres: genres,
+            countries: countries,
+            servers: servers
+        });
+    } catch (e) {
+        log("parseMovieDetail error: " + e.message);
+        return JSON.stringify({ title: "", servers: [] });
+    }
+}
+
+function parseDetailResponse(htmlContent, pageUrl) {
+    try {
+        log("parseDetailResponse input pageUrl: " + pageUrl);
+        
+        var link = "";
+        // Tìm window.PLAYER_DATA
+        var match = /window\.PLAYER_DATA\s*=\s*(\{.*?\});/s.exec(htmlContent);
+        if (match) {
+            var data = JSON.parse(match[1]);
+            if (data && data.link) {
+                link = data.link;
+                log("Extracted player link from window.PLAYER_DATA: " + link);
+            }
+        }
+        
+        // Fallback: Quét tất cả các iframe
+        if (!link) {
+            var iframeMatch = htmlContent.match(/<iframe[^>]*src="([^"]+)"/i);
+            if (iframeMatch) {
+                link = iframeMatch[1];
+                log("Fallback iframe link: " + link);
+            }
+        }
+        
+        if (link) {
+            if (link.indexOf('//') === 0) link = "https:" + link;
+            
+            return JSON.stringify({
+                url: link,
+                isEmbed: true, // Chạy dưới dạng Embed WebView để phát trực tiếp
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer": "https://animevietsub.love/"
+                },
+                subtitles: []
+            });
+        }
+        
+        return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+    } catch (e) {
+        log("parseDetailResponse error: " + e.message);
+        return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
+    }
+}
+
+function parseEmbedResponse(htmlContent, url) {
+    return JSON.stringify({
+        url: url,
+        isEmbed: true,
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://animevietsub.love/"
+        },
+        subtitles: []
+    });
+}
