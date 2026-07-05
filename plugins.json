@@ -53,7 +53,7 @@
         {
             "id": "animevietsub",
             "name": "AnimeVietSub",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/animevietsub_plugin.js",
             "iconUrl": "https://animevietsub.love/statics/default/images/logo.png"
         },
