@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.1",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -154,8 +154,17 @@ function parseListResponse(htmlContent) {
             var yearMatch = /\((\d{4})\)/.exec(fullTitle);
             if (yearMatch) year = parseInt(yearMatch[1]);
 
+            var href = linkMatch[1];
+            var slug = href;
+            var slugMatch = /\/phim\/([^/]+)/.exec(href);
+            if (slugMatch) {
+                slug = slugMatch[1];
+            } else {
+                slug = href.substring(href.lastIndexOf('/') + 1) || href;
+            }
+
             movies.push({
-                id: linkMatch[1],
+                id: slug,
                 title: title,
                 posterUrl: posterUrl,
                 backdropUrl: posterUrl,
@@ -292,14 +301,19 @@ function parseMovieDetail(htmlContent) {
             });
         }
 
-        // Trích xuất id phim từ canonical url hoặc gán mặc định nếu không thấy
-        if (!id) {
-            var slugMatch = /\/phim\/([^/]+)/.exec(htmlContent);
-            id = slugMatch ? "https://animevietsub.love/phim/" + slugMatch[1] : "https://animevietsub.love/";
+        // Trích xuất slug từ canonical URL hoặc og:url (id)
+        var slug = "";
+        if (id) {
+            var slugMatch = /\/phim\/([^/]+)/.exec(id);
+            slug = slugMatch ? slugMatch[1] : id;
+        }
+        if (!slug) {
+            var slugMatch2 = /\/phim\/([^/]+)/.exec(htmlContent);
+            slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
         return JSON.stringify({
-            id: id,
+            id: slug,
             title: title,
             posterUrl: posterUrl,
             backdropUrl: posterUrl,
