@@ -46,7 +46,7 @@
         {
             "id": "phimhdcs",
             "name": "PhimHDCSS",
-            "version": "1.1.2",
+            "version": "1.1.3",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/phimhdcs_plugin.js",
             "iconUrl": "https://phimhdcss.com/favicon.ico"
         },
