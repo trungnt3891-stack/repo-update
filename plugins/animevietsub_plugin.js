@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.1",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -312,6 +312,13 @@ function parseMovieDetail(htmlContent) {
             slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
+        // Tạo extra url để tải đầy đủ tập từ trang xem-phim
+        var extra = "";
+        var isPlayPage = htmlContent.indexOf("window.PLAYER_DATA") > -1 || htmlContent.indexOf("xem-phim") > -1;
+        if (!isPlayPage && slug && slug !== "error") {
+            extra = "https://animevietsub.love/phim/" + slug + "/xem-phim.html";
+        }
+
         return JSON.stringify({
             id: slug,
             title: title,
@@ -325,7 +332,8 @@ function parseMovieDetail(htmlContent) {
             quality: "FHD",
             category: genres.join(", "),
             country: countries.join(", "),
-            status: status
+            status: status,
+            extra: extra
         });
     } catch (e) {
         log("parseMovieDetail error: " + e.message);
@@ -360,8 +368,13 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
+            // Lách luật Frame-Only: Nhúng URL player thực tế vào một thẻ iframe của tài liệu HTML ảo
+            var iframeHtml = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background-color:#000;}iframe{border:none;width:100%;height:100%;}</style></head><body><iframe src='" + link + "' allowfullscreen></iframe></body></html>";
+            
+            var dataUrl = "data:text/html;charset=utf-8," + encodeURIComponent(iframeHtml);
+            
             return JSON.stringify({
-                url: link,
+                url: dataUrl,
                 isEmbed: true, // Chạy dưới dạng Embed WebView để phát trực tiếp
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
