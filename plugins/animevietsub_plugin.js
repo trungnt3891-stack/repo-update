@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.1",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -250,7 +250,7 @@ function parseMovieDetail(htmlContent) {
 
         // Parse danh sách tập phim
         var episodes = [];
-        var epPattern = /<a[^>]*class="[^"]*(?:btn-episode|episode-link)[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        var epPattern = /<a\s+[^>]*href="([^"]*\/tap-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         var epMatch;
         while ((epMatch = epPattern.exec(htmlContent)) !== null) {
             var epUrl = epMatch[1];
@@ -276,6 +276,13 @@ function parseMovieDetail(htmlContent) {
                 });
             }
         }
+
+        // Sắp xếp các tập phim theo thứ tự tăng dần (ví dụ Tập 1 -> Tập 13)
+        episodes.sort(function(a, b) {
+            var epA = parseInt(a.name) || 0;
+            var epB = parseInt(b.name) || 0;
+            return epA - epB;
+        });
 
         var servers = [];
         if (episodes.length > 0) {
