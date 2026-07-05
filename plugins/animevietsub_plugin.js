@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
