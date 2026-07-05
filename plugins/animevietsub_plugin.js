@@ -6,12 +6,12 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.6",
+        "version": "1.0.7",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
         "type": "MOVIE",
-        "playerType": "embed"
+        "playerType": "embedtoexoplay"
     });
 }
 
