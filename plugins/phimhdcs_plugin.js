@@ -358,6 +358,13 @@ function parseMovieDetail(htmlContent) {
 
         while ((match = serverPattern.exec(htmlContent)) !== null) {
             var serverName = match[1].trim();
+            // Làm sạch tên server: bỏ "Server" ở đầu, bỏ "z" ở đầu (ví dụ zThuyết Minh -> Thuyết Minh), bỏ "#1", "#2" ở cuối
+            var cleanServerName = serverName
+                .replace(/^Server\s+/i, '')
+                .replace(/^z/i, '')
+                .replace(/\s*#\d+$/, '')
+                .trim();
+
             var episodesHtml = match[2];
             var episodes = [];
             var epPattern = /<a\s+href="([^"]+)"\s+id=['"]no-link['"][\s\S]*?title="([^"]+)"/gi;
@@ -387,7 +394,7 @@ function parseMovieDetail(htmlContent) {
                     episodes.reverse();
                 }
 
-                servers.push({ name: serverName, episodes: episodes });
+                servers.push({ name: cleanServerName, episodes: episodes });
             }
         }
 
@@ -557,6 +564,16 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 log('PHIMHDCS_DEBUG decoding targetId=' + targetId + ', chunks=' + chunks.length + ', salt=' + saltString);
                 var playerUrl = decodeChunksWithSalt(chunks, saltString);
                 log('PHIMHDCS_DEBUG decoded playerUrl: ' + playerUrl);
+
+                // Lọc bỏ wrapper player.php?link= hoặc player.php?url= để lấy link stream trực tiếp
+                if (playerUrl && playerUrl.indexOf("player.php?") !== -1) {
+                    var matchLink = /[?&](?:link|url)=([^&]+)/.exec(playerUrl);
+                    if (matchLink) {
+                        var decodedLink = decodeURIComponent(matchLink[1]);
+                        log('PHIMHDCS_DEBUG extracted direct link from player.php: ' + decodedLink);
+                        playerUrl = decodedLink;
+                    }
+                }
                 
                 if (playerUrl && playerUrl.indexOf('http') === 0) {
                     var isDirect = playerUrl.indexOf('.m3u8') !== -1 || playerUrl.indexOf('.mp4') !== -1;
@@ -591,10 +608,23 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (iframeMatch) {
             var embedUrl = iframeMatch[1];
             if (embedUrl.indexOf('//') === 0) embedUrl = "https:" + embedUrl;
+            
+            // Lọc bỏ wrapper player.php?link= hoặc player.php?url= nếu có trong iframe src
+            if (embedUrl.indexOf("player.php?") !== -1) {
+                var matchLink = /[?&](?:link|url)=([^&]+)/.exec(embedUrl);
+                if (matchLink) {
+                    var decodedLink = decodeURIComponent(matchLink[1]);
+                    log('PHIMHDCS_DEBUG extracted direct link from player.php in iframe: ' + decodedLink);
+                    embedUrl = decodedLink;
+                }
+            }
+
             if (embedUrl && embedUrl !== pageUrl && embedUrl.length > 5) {
+                var isDirect = embedUrl.indexOf('.m3u8') !== -1 || embedUrl.indexOf('.mp4') !== -1;
                 return JSON.stringify({
                     url: embedUrl,
-                    isEmbed: true,
+                    isEmbed: !isDirect, // Nếu là link direct m3u8 thì isEmbed = false (dừng loop phát trực tiếp), ngược lại true
+                    mimeType: isDirect ? "application/x-mpegURL" : undefined,
                     headers: {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                         "Referer": "https://phimhdcss.com/"
