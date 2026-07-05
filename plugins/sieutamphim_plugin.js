@@ -266,7 +266,7 @@ function parseMovieDetail(html, url) {
                     // QUAN TRỌNG: Không dùng :// để App nhảy vào getUrlDetail
                     id: "play-" + movieUrl + "?id=" + postId + "&server=" + encodeURIComponent(serverId) + "&tap=" + j,
                     name: epCount === 1 ? "Full" : "Tập " + j,
-                    slug: String(j)
+                    slug: "tap-" + j
                 });
             }
 
@@ -285,7 +285,7 @@ function parseMovieDetail(html, url) {
         }
 
         return JSON.stringify({
-            id: slugId,
+            id: "",
             title: decodeHtmlEntities(title.replace(" - Siêu Tầm Phim", "").trim()),
             posterUrl: poster,
             backdropUrl: poster,
