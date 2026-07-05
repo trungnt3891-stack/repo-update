@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.4",
+        "version": "1.0.0",
         "baseUrl": "https://animevietsub.love",
         "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
         "isEnabled": true,
@@ -415,7 +415,7 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 isEmbed: true,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": "https://animevietsub.love/",
+                    "Referer": pageUrl || "https://animevietsub.love/",
                     "Custom-Js": bypassJs
                 },
                 subtitles: []
@@ -447,12 +447,16 @@ function parseEmbedResponse(htmlContent, url) {
         }
 
         // Không tìm thấy m3u8 → trả embed với Block-Scripts chặn avs-shield
+        // Trích xuất nextUrl từ URL embed hiện tại để làm Referer chuẩn
+        var nextUrlMatch = url.match(/nextUrl=([^&]+)/);
+        var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : "https://animevietsub.love/";
+
         return JSON.stringify({
             url: url,
             isEmbed: true,
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": "https://animevietsub.love/",
+                "Referer": referer,
                 "Block-Scripts": "avs-shield"
             },
             subtitles: []
