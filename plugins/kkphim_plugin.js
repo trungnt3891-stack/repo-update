@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "kkphim",
         "name": "KKPhim",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "baseUrl": "https://phimapi.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim.png",
         "isEnabled": true,
@@ -286,5 +286,5 @@ function parseYearsResponse(apiResponseJson) {
 function getPosterUrl(path) {
     if (!path) return "";
     if (path.indexOf("http") === 0) return path;
-    return "https://phimapi.com/image.php?url=https://phimimg.com/" + path;
+    return "https://phimimg.com/" + path;
 }
