@@ -11,7 +11,7 @@
         {
             "id": "kkphim",
             "name": "KKPhim",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim.png"
         },
