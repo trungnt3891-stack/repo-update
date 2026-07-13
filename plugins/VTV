@@ -4,11 +4,11 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "vmttv",
-        "name": "VMT TV",
-        "version": "1.0.2",
-        "baseUrl": "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main",
-        "iconUrl": "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/Logo.png",
+        "id": "truyenhinh_pro",
+        "name": "Truyền Hình Pro",
+        "version": "2.0.0",
+        "baseUrl": "https://github.com", 
+        "iconUrl": "https://i.imgur.com/8Q5YZbX.png", // Bạn có thể thay logo app của bạn
         "isEnabled": true,
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
@@ -18,37 +18,21 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'su-kien', title: '🔴 Sự Kiện', type: 'Grid', path: 'vmttv' }
+        { slug: 'the-thao', title: '🔴 Thể Thao Trực Tiếp', type: 'Grid', path: 'danh-sach' },
+        { slug: 'vtv', title: '📺 Kênh VTV', type: 'Horizontal', path: 'danh-sach' },
+        { slug: 'htv-thvl', title: '🎬 HTV & THVL', type: 'Horizontal', path: 'danh-sach' },
+        { slug: 'sctv', title: '🍿 Phim SCTV', type: 'Horizontal', path: 'danh-sach' },
+        { slug: 'quoc-te', title: '🌍 Quốc Tế', type: 'Horizontal', path: 'danh-sach' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'FIFA WORLD CUP 2026', slug: 'fifa-world-cup-2026' },
-        { name: 'Sự Kiện', slug: 'su-kien' },
-        { name: 'THỂ THAO QT', slug: 'the-thao-quoc-te' },
-        { name: '⚽ Thể thao QT', slug: 'bong-da-quoc-te' },
-        { name: 'TVB', slug: 'tvb' },
-        { name: 'LIVE EVENTS 🔴', slug: 'live-events' },
-        { name: 'Sự Kiện TV360', slug: 'su-kien-tv360' },
-        { name: 'Sự Kiện VTVPrime', slug: 'su-kien-vtvprime' },
-        { name: 'Rạp Phim', slug: 'rap-phim' },
-        { name: 'VTV', slug: 'vtv' },
-        { name: 'VTVcab', slug: 'vtvcab' },
-        { name: 'SCTV', slug: 'sctv' },
-        { name: '📦 In The Box', slug: 'in-the-box' },
-        { name: 'HTV', slug: 'htv' },
-        { name: 'HTVC', slug: 'htvc' },
-        { name: '🌐 Thiết yếu', slug: 'thiet-yeu' },
-        { name: 'Địa phương', slug: 'dia-phuong' },
-        { name: 'Quốc Tế', slug: 'quoc-te' },
-        { name: 'Radio', slug: 'radio' },
-        { name: '🇻🇳 Vietnam Radio', slug: 'vietnam-radio' },
-        { name: '🇬🇧 UK Radio', slug: 'uk-radio' },
-        { name: '🇰🇷 Hàn Quốc', slug: 'han-quoc' },
-        { name: '🇨🇳 Trung Quốc', slug: 'trung-quoc' },
-        { name: '🇹🇭 Thái Lan', slug: 'thai-lan' },
-        { name: '🇰🇭 Campuchia', slug: 'campuchia' }
+        { name: '⚽ Thể Thao', slug: 'the-thao' },
+        { name: '📺 VTV', slug: 'vtv' },
+        { name: '🎬 HTV - THVL', slug: 'htv-thvl' },
+        { name: '🍿 SCTV', slug: 'sctv' },
+        { name: '🌍 Quốc Tế', slug: 'quoc-te' }
     ]);
 }
 
@@ -57,10 +41,11 @@ function getFilterConfig() {
 }
 
 // =============================================================================
-// URL GENERATION
+// URL GENERATION (THAY LINK GITHUB CỦA BẠN VÀO ĐÂY)
 // =============================================================================
 
-var M3U_URL = "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/vmttv";
+// Thay link raw github chứa file TruyenHinh.m3u của bạn vào biến này
+var M3U_URL = "https://raw.githubusercontent.com/ten-github-cua-ban/repo/main/TruyenHinh.m3u";
 
 function getUrlList(slug, filtersJson) {
     if (slug && slug !== 'all') {
@@ -74,9 +59,7 @@ function getUrlSearch(keyword, filtersJson) {
 }
 
 function getUrlDetail(slug) {
-    if (slug.indexOf("http") === 0) {
-        return slug;
-    }
+    if (slug.indexOf("http") === 0) return slug;
     return M3U_URL + "?id=" + encodeURIComponent(slug);
 }
 
@@ -85,46 +68,29 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// CATEGORY SLUG ↔ group-title MAPPING (đầy đủ theo M3U gốc)
+// CATEGORY SLUG ↔ group-title MAPPING (Khớp với file M3U mới)
 // =============================================================================
 
 var CATEGORY_MAP = {
-    'fifa-world-cup-2026': 'FIFA WORLD CUP 2026',
-    'su-kien': 'Sự Kiện',
-    'the-thao-quoc-te': 'THỂ THAO QUỐC TẾ',
-    'bong-da-quoc-te': '⚽| Thể thao quốc tế',
-    'tvb': 'TVB',
-    'live-events': 'LIVE EVENTS 🔴',
-    'su-kien-tv360': 'Sự Kiện TV360',
-    'su-kien-vtvprime': 'Sự Kiện VTVPrime',
-    'rap-phim': 'Rạp Phim',
-    'vtv': 'VTV',
-    'vtvcab': 'VTVcab',
-    'sctv': 'SCTV',
-    'in-the-box': '📦| In The Box',
-    'htv': 'HTV',
-    'htvc': 'HTVC',
-    'thiet-yeu': '🌐| Thiết yếu',
-    'dia-phuong': 'Địa phương',
-    'quoc-te': 'Quốc Tế',
-    'radio': 'Radio',
-    'vietnam-radio': '🇻🇳 Vietnam Radio',
-    'uk-radio': '🇬🇧 UK Radio',
-    'han-quoc': '🇰🇷| Hàn Quốc',
-    'trung-quoc': '🇨🇳| Trung Quốc',
-    'thai-lan': '🇹🇭| Thái Lan',
-    'campuchia': '🇰🇭| Campuchia'
+    'vtv': '📺 VTV',
+    'htv-thvl': '🎬 HTV - THVL',
+    'sctv': '🍿 SCTV',
+    'quoc-te': '🌍 QUỐC TẾ',
+    'the-thao': '⚽ THỂ THAO TRỰC TIẾP'
 };
 
 // =============================================================================
-// M3U PARSER
+// M3U ADVANCED PARSER (Hỗ trợ bắt mã DRM KODIPROP)
 // =============================================================================
 
 function parseM3U(text) {
     var lines = text.split('\n');
     var channels = [];
     var currentInfo = null;
+    
     var currentUserAgent = '';
+    var currentLicenseType = '';
+    var currentLicenseKey = '';
     var channelIndex = 0;
 
     for (var i = 0; i < lines.length; i++) {
@@ -132,35 +98,42 @@ function parseM3U(text) {
 
         if (line.indexOf('#EXTINF:') === 0) {
             var groupMatch = line.match(/group-title="([^"]*)"/);
-            var logoMatch = line.match(/tvg-logo="([^"]*)"/);
+            var logoMatch = line.match(/tvg-logo="([^"]*)"/) || line.match(/group-logo="([^"]*)"/);
             var tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
 
             var commaIdx = line.lastIndexOf(',');
             var name = commaIdx >= 0 ? line.substring(commaIdx + 1).trim() : '';
 
             currentInfo = {
-                group: groupMatch ? groupMatch[1] : '',
+                group: groupMatch ? groupMatch[1] : 'Khác',
                 logo: logoMatch ? logoMatch[1] : '',
                 tvgId: tvgIdMatch ? tvgIdMatch[1] : '',
                 name: name,
                 index: channelIndex++
             };
+            
+            // Reset params cho luồng mới
             currentUserAgent = '';
+            currentLicenseType = '';
+            currentLicenseKey = '';
+            
         } else if (line.indexOf('#EXTVLCOPT:http-user-agent=') === 0) {
             currentUserAgent = line.substring('#EXTVLCOPT:http-user-agent='.length).trim();
-        } else if (line.indexOf('#EXTVLCOPT:') === 0 || line.indexOf('#KODIPROP:') === 0) {
-            // Skip VLC/Kodi directives
+        } else if (line.indexOf('#KODIPROP:inputstream.adaptive.license_type=') === 0) {
+            currentLicenseType = line.substring('#KODIPROP:inputstream.adaptive.license_type='.length).trim();
+        } else if (line.indexOf('#KODIPROP:inputstream.adaptive.license_key=') === 0) {
+            currentLicenseKey = line.substring('#KODIPROP:inputstream.adaptive.license_key='.length).trim();
         } else if (line.indexOf('#') === 0) {
-            // Skip other directives
+            // Skip other tags
         } else if (line.length > 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
             if (currentInfo) {
                 currentInfo.url = line;
                 currentInfo.userAgent = currentUserAgent;
+                currentInfo.licenseType = currentLicenseType;
+                currentInfo.licenseKey = currentLicenseKey;
+                
                 channels.push(currentInfo);
                 currentInfo = null;
-                currentUserAgent = '';
-            } else {
-                currentUserAgent = '';
             }
         }
     }
@@ -178,31 +151,26 @@ function extractParamFromUrl(url, param) {
 }
 
 function makeChannelId(channel) {
-    if (channel.tvgId) {
-        return channel.tvgId;
-    }
+    if (channel.tvgId) return channel.tvgId;
     return (channel.group || 'unknown') + '::' + (channel.name || '') + '::' + channel.index;
 }
 
 function findChannelByIdInList(channels, channelId) {
     for (var i = 0; i < channels.length; i++) {
-        if (makeChannelId(channels[i]) === channelId) {
-            return channels[i];
-        }
+        if (makeChannelId(channels[i]) === channelId) return channels[i];
     }
     return null;
 }
 
 // =============================================================================
-// PARSERS (apiUrl là tham số thứ 2 được app truyền vào)
+// PARSERS
 // =============================================================================
 
 function parseListResponse(apiResponseJson, apiUrl) {
     try {
         var channels = parseM3U(apiResponseJson);
-
-        // Lọc theo category từ ?cat= trong apiUrl
         var catSlug = extractParamFromUrl(apiUrl, 'cat');
+        
         if (catSlug && catSlug !== 'all' && CATEGORY_MAP[catSlug]) {
             var groupName = CATEGORY_MAP[catSlug];
             channels = channels.filter(function (ch) {
@@ -210,7 +178,6 @@ function parseListResponse(apiResponseJson, apiUrl) {
             });
         }
 
-        // Lọc theo search keyword từ ?search= trong apiUrl
         var searchKeyword = extractParamFromUrl(apiUrl, 'search');
         if (searchKeyword) {
             var keyword = searchKeyword.toLowerCase();
@@ -219,23 +186,22 @@ function parseListResponse(apiResponseJson, apiUrl) {
             });
         }
 
-        var allItems = [];
-        channels.forEach(function (channel) {
-            allItems.push({
+        var allItems = channels.map(function (channel) {
+            return {
                 id: makeChannelId(channel),
                 title: channel.name,
-                posterUrl: channel.logo || "",
+                posterUrl: channel.logo || "https://i.imgur.com/8Q5YZbX.png", // Default logo
                 backdropUrl: channel.logo || "",
                 year: 0,
                 quality: "LIVE",
                 episode_current: channel.group || "Live",
                 lang: channel.group || ""
-            });
+            };
         });
 
         return JSON.stringify({
             items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 500 }
+            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 1000 }
         });
     } catch (error) {
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
@@ -254,67 +220,36 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         var channels = parseM3U(apiResponseJson);
         var channel = findChannelByIdInList(channels, channelId);
 
-        // Fallback 1: match by index (last part of ID after '::')
-        if (!channel) {
-            var parts = channelId.split('::');
-            if (parts.length >= 2) {
-                var idx = parseInt(parts[parts.length - 1], 10);
-                if (!isNaN(idx)) {
-                    for (var i = 0; i < channels.length; i++) {
-                        if (channels[i].index === idx) { channel = channels[i]; break; }
-                    }
-                }
-            }
-        }
-        // Fallback 2: match by channel name (middle part of ID)
-        if (!channel) {
-            var parts2 = channelId.split('::');
-            if (parts2.length >= 2) {
-                var nameToFind = parts2[parts2.length - 2];
-                for (var j = 0; j < channels.length; j++) {
-                    if (channels[j].name === nameToFind) { channel = channels[j]; break; }
-                }
-            }
-        }
         if (!channel) return "null";
 
-        var servers = [];
-        var episodes = [];
+        // Gói cẩn thận các thông số UA và DRM vào ID luồng
         var episodeId = channel.url;
         if (channel.userAgent) {
             episodeId += "|ua=" + encodeURIComponent(channel.userAgent);
         }
-
-        episodes.push({
-            id: episodeId,
-            name: channel.name,
-            slug: "stream"
-        });
-
-        servers.push({
-            name: channel.group || "Live Source",
-            episodes: episodes
-        });
-
-        var description = "Kênh: " + channel.name;
-        if (channel.group) description += " | Nhóm: " + channel.group;
+        if (channel.licenseType && channel.licenseKey) {
+            episodeId += "|drm_type=" + encodeURIComponent(channel.licenseType) + "|drm_key=" + encodeURIComponent(channel.licenseKey);
+        }
 
         return JSON.stringify({
             id: makeChannelId(channel),
             title: channel.name,
-            originName: "",
+            originName: channel.group,
             posterUrl: channel.logo || "",
             backdropUrl: channel.logo || "",
-            description: description,
-            year: 0,
-            rating: 0,
+            description: "Đang phát trực tiếp: " + channel.name,
+            year: 2024,
+            rating: 5,
             quality: "LIVE",
-            servers: servers,
+            servers: [{
+                name: "Stream Mặc Định",
+                episodes: [{ id: episodeId, name: "Xem ngay", slug: "live" }]
+            }],
             episode_current: "Live",
-            lang: channel.group || "Việt",
-            category: channel.group || "TV",
-            country: "Việt",
-            director: "VMT TV",
+            lang: "Việt Nam",
+            category: channel.group,
+            country: "Việt Nam",
+            director: "Hệ thống Truyền Hình",
             casts: ""
         });
     } catch (error) {
@@ -325,29 +260,43 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
 function parseDetailResponse(apiResponseJson, apiUrl) {
     try {
         var streamUrl = apiUrl || "";
-        var userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+        var userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36";
+        var drmType = "";
+        var drmKey = "";
 
-        if (streamUrl.indexOf('|ua=') !== -1) {
-            var parts = streamUrl.split('|ua=');
+        // Bóc tách các tham số cấu hình ra khỏi ID luồng
+        if (streamUrl.indexOf('|') !== -1) {
+            var parts = streamUrl.split('|');
             streamUrl = parts[0];
-            userAgent = decodeURIComponent(parts[1]);
+            for (var i = 1; i < parts.length; i++) {
+                if (parts[i].indexOf('ua=') === 0) {
+                    userAgent = decodeURIComponent(parts[i].substring(3));
+                } else if (parts[i].indexOf('drm_type=') === 0) {
+                    drmType = decodeURIComponent(parts[i].substring(9));
+                } else if (parts[i].indexOf('drm_key=') === 0) {
+                    drmKey = decodeURIComponent(parts[i].substring(8));
+                }
+            }
         }
 
-        return JSON.stringify({
+        var responseObj = {
             url: streamUrl,
             headers: { "User-Agent": userAgent },
             subtitles: []
-        });
-    } catch (error) {
-        var streamUrlFallback = apiUrl || "";
-        if (streamUrlFallback.indexOf('|ua=') !== -1) {
-            streamUrlFallback = streamUrlFallback.split('|ua=')[0];
+        };
+
+        // Kích hoạt giải mã DRM nếu có
+        if (drmType && drmKey) {
+            // DRM type có thể là 'clearkey' hoặc 'widevine'
+            responseObj.drm = {
+                type: drmType.replace("org.w3.", ""), 
+                licenseUrl: drmKey
+            };
         }
-        return JSON.stringify({
-            url: streamUrlFallback,
-            headers: { "User-Agent": "Mozilla/5.0" },
-            subtitles: []
-        });
+
+        return JSON.stringify(responseObj);
+    } catch (error) {
+        return JSON.stringify({ url: apiUrl || "", headers: { "User-Agent": "Mozilla/5.0" } });
     }
 }
 
@@ -359,6 +308,3 @@ function parseCategoriesResponse(apiResponseJson) {
     }
     return JSON.stringify(cats);
 }
-
-function parseCountriesResponse(apiResponseJson) { return "[]"; }
-function parseYearsResponse(apiResponseJson) { return "[]"; }
