@@ -1,12 +1,13 @@
 // =============================================================================
-// PLUGIN CONFIGURATION (Nguồn chuẩn v2)
+// PLUGIN CONFIGURATION - VIETNG228 IPTV
 // =============================================================================
 
 function getManifest() {
     return JSON.stringify({
-        "id": "iptv_standard_vn",
-        "name": "IPTV VN Standard",
-        "version": "7.0.0",
+        "id": "vietng228_iptv",
+        "name": "VietNg228 IPTV",
+        "version": "1.0.0",
+        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u",
         "iconUrl": "https://i.imgur.com/nfkmvAY.png",
         "isEnabled": true,
         "type": "VIDEO",
@@ -17,38 +18,28 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'vtv', title: '📺 Kênh VTV', type: 'Horizontal', path: 'iptv_standard_vn' },
-        { slug: 'htv', title: '🎬 Kênh HTV & THVL', type: 'Horizontal', path: 'iptv_standard_vn' },
-        { slug: 'dia-phuong', title: '📍 Kênh Địa Phương', type: 'Grid', path: 'iptv_standard_vn' }
+        { slug: 'all', title: 'Tất cả kênh', type: 'Grid', path: 'vietng228_iptv' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: '📺 VTV', slug: 'vtv' },
-        { name: '🎬 HTV & THVL', slug: 'htv' },
-        { name: '📍 Địa Phương', slug: 'dia-phuong' },
-        { name: '🌐 Tất cả', slug: 'all' }
+        { name: 'Tất cả', slug: 'all' }
     ]);
 }
 
 // =============================================================================
-// URL GENERATION & ROUTING
+// URL & ROUTING
 // =============================================================================
 
-// BẠN DÁN LINK GITHUB/PASTEBIN CỦA FILE M3U CHỨA NỘI DUNG TRÊN VÀO ĐÂY:
-var M3U_URL = "https://raw.githubusercontent.com/username/repo/main/file_cua_ban.m3u";
+var M3U_URL = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
 
-function getUrlList(slug, filtersJson) {
-    return M3U_URL; // Nguồn duy nhất
-}
-
-function getUrlDetail(slug) {
-    return M3U_URL; 
-}
+function getUrlList(slug, filtersJson) { return M3U_URL; }
+function getUrlSearch(keyword, filtersJson) { return M3U_URL + "?search=" + encodeURIComponent(keyword); }
+function getUrlDetail(slug) { return M3U_URL + "?id=" + encodeURIComponent(slug); }
 
 // =============================================================================
-// PARSING LOGIC (Tối ưu cho list M3U của bạn)
+// PARSER ENGINE
 // =============================================================================
 
 function parseM3U(text) {
@@ -80,30 +71,34 @@ function parseM3U(text) {
 }
 
 function parseListResponse(apiResponseJson, apiUrl) {
-    var channels = parseM3U(apiResponseJson);
-    var items = channels.map(function(ch) {
-        return {
-            id: encodeURIComponent(ch.name),
-            title: ch.name,
-            posterUrl: ch.logo,
-            quality: "LIVE",
-            episode_current: ch.group
-        };
-    });
-    return JSON.stringify({ items: items, pagination: { totalPages: 1 } });
+    try {
+        var channels = parseM3U(apiResponseJson);
+        var items = channels.map(function(ch) {
+            return {
+                id: encodeURIComponent(ch.name + '::' + ch.url),
+                title: ch.name,
+                posterUrl: ch.logo || "https://i.imgur.com/nfkmvAY.png",
+                quality: "LIVE",
+                episode_current: ch.group || "Live",
+                lang: "Việt"
+            };
+        });
+        return JSON.stringify({ items: items, pagination: { totalPages: 1 } });
+    } catch (e) { return JSON.stringify({ items: [] }); }
 }
 
 function parseMovieDetail(apiResponseJson, apiUrl) {
     var channels = parseM3U(apiResponseJson);
     var id = decodeURIComponent(extractParamFromUrl(apiUrl, 'id'));
-    var channel = channels.filter(function(ch) { return ch.name === id; })[0];
+    var channel = channels.filter(function(ch) { return (ch.name + '::' + ch.url) === id; })[0];
     
     if (!channel) return "null";
+    
     return JSON.stringify({
         id: id,
         title: channel.name,
-        posterUrl: channel.logo,
-        servers: [{ name: "Live", episodes: [{ id: channel.url, name: channel.name, slug: "stream" }] }]
+        posterUrl: channel.logo || "",
+        servers: [{ name: "Live Stream", episodes: [{ id: channel.url, name: channel.name, slug: "stream" }] }]
     });
 }
 
