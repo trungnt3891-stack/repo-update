@@ -7,7 +7,7 @@ function getManifest() {
         "id": "iptv_standard_v2",
         "name": "Truyền Hình Chuẩn",
         "version": "8.0.0",
-        "baseUrl": "https://raw.githubusercontent.com/hieu-TQS/YOUR_REPO/main/data.m3u", // Thay link Raw của bạn vào đây
+        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u", // Thay link Raw của bạn vào đây
         "iconUrl": "https://i.imgur.com/nfkmvAY.png",
         "isEnabled": true,
         "type": "VIDEO",
@@ -35,7 +35,7 @@ function getPrimaryCategories() {
 
 function getUrlList(slug, filtersJson) {
     // Thay link Raw của file .m3u bạn đã tải lên GitHub vào đây
-    return "https://raw.githubusercontent.com/hieu-TQS/YOUR_REPO/main/data.m3u"; 
+    return "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u"; 
 }
 
 // =============================================================================
