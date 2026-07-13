@@ -1,14 +1,13 @@
 // =============================================================================
-// CONFIGURATION & METADATA
+// PLUGIN CONFIGURATION (Nguồn chuẩn v2)
 // =============================================================================
 
 function getManifest() {
     return JSON.stringify({
-        "id": "vietxiaomi_iptv",
-        "name": "VietXiaomi IPTV",
-        "version": "6.0.0",
-        "baseUrl": "http://tinyurl.com/vietxiaomi",
-        "iconUrl": "https://raw.githubusercontent.com/hieu-TQS/LOGO-IPTV/main/1.png",
+        "id": "iptv_standard_vn",
+        "name": "IPTV VN Standard",
+        "version": "7.0.0",
+        "iconUrl": "https://i.imgur.com/nfkmvAY.png",
         "isEnabled": true,
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
@@ -18,81 +17,108 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'all', title: 'Tất cả kênh', type: 'Grid', path: 'vietxiaomi_iptv' }
+        { slug: 'vtv', title: '📺 Kênh VTV', type: 'Horizontal', path: 'iptv_standard_vn' },
+        { slug: 'htv', title: '🎬 Kênh HTV & THVL', type: 'Horizontal', path: 'iptv_standard_vn' },
+        { slug: 'dia-phuong', title: '📍 Kênh Địa Phương', type: 'Grid', path: 'iptv_standard_vn' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'Tất cả', slug: 'all' }
+        { name: '📺 VTV', slug: 'vtv' },
+        { name: '🎬 HTV & THVL', slug: 'htv' },
+        { name: '📍 Địa Phương', slug: 'dia-phuong' },
+        { name: '🌐 Tất cả', slug: 'all' }
     ]);
 }
 
-function getFilterConfig() { return JSON.stringify({}); }
-
 // =============================================================================
-// URL GENERATION
+// URL GENERATION & ROUTING
 // =============================================================================
 
-var SINGLE_SOURCE = "http://tinyurl.com/vietxiaomi";
+// BẠN DÁN LINK GITHUB/PASTEBIN CỦA FILE M3U CHỨA NỘI DUNG TRÊN VÀO ĐÂY:
+var M3U_URL = "https://raw.githubusercontent.com/username/repo/main/file_cua_ban.m3u";
 
 function getUrlList(slug, filtersJson) {
-    return SINGLE_SOURCE;
-}
-
-function getUrlSearch(keyword, filtersJson) {
-    return SINGLE_SOURCE + "?search=" + encodeURIComponent(keyword);
+    return M3U_URL; // Nguồn duy nhất
 }
 
 function getUrlDetail(slug) {
-    if (slug.indexOf("http") === 0) return slug;
-    return SINGLE_SOURCE + "?id=" + encodeURIComponent(slug);
+    return M3U_URL; 
 }
 
 // =============================================================================
-// PARSERS (Sử dụng trực tiếp nguồn VietXiaomi)
+// PARSING LOGIC (Tối ưu cho list M3U của bạn)
 // =============================================================================
 
-function parseListResponse(apiResponseJson, apiUrl) {
-    try {
-        var channels = parseM3U(apiResponseJson);
-        var allItems = channels.map(function (channel) {
-            return {
-                id: encodeURIComponent(channel.name + '::' + channel.url),
-                title: channel.name,
-                posterUrl: channel.logo || "https://raw.githubusercontent.com/hieu-TQS/LOGO-IPTV/main/1.png",
-                quality: "LIVE",
-                episode_current: channel.group || "Live",
-                lang: "Việt"
+function parseM3U(text) {
+    var lines = text.split('\n');
+    var channels = [];
+    var currentInfo = null;
+
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (line.indexOf('#EXTINF:') === 0) {
+            var groupMatch = line.match(/group-title="([^"]*)"/);
+            var logoMatch = line.match(/tvg-logo="([^"]*)"/);
+            var name = line.substring(line.lastIndexOf(',') + 1).trim();
+
+            currentInfo = {
+                group: groupMatch ? groupMatch[1] : 'Khác',
+                logo: logoMatch ? logoMatch[1] : '',
+                name: name
             };
-        });
-        return JSON.stringify({
-            items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 5000 }
-        });
-    } catch (error) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
+        } else if (line.length > 0 && line.indexOf('http') === 0) {
+            if (currentInfo) {
+                currentInfo.url = line;
+                channels.push(currentInfo);
+                currentInfo = null;
+            }
+        }
     }
+    return channels;
+}
+
+function parseListResponse(apiResponseJson, apiUrl) {
+    var channels = parseM3U(apiResponseJson);
+    var items = channels.map(function(ch) {
+        return {
+            id: encodeURIComponent(ch.name),
+            title: ch.name,
+            posterUrl: ch.logo,
+            quality: "LIVE",
+            episode_current: ch.group
+        };
+    });
+    return JSON.stringify({ items: items, pagination: { totalPages: 1 } });
 }
 
 function parseMovieDetail(apiResponseJson, apiUrl) {
-    try {
-        var channels = parseM3U(apiResponseJson);
-        var id = decodeURIComponent(extractParamFromUrl(apiUrl, 'id'));
-        var channel = channels.filter(function(ch) { return (ch.name + '::' + ch.url) === id; })[0];
-        
-        if (!channel) return "null";
-
-        return JSON.stringify({
-            id: id,
-            title: channel.name,
-            posterUrl: channel.logo || "",
-            servers: [{
-                name: "Main Server",
-                episodes: [{ id: channel.url, name: channel.name, slug: "stream" }]
-            }]
-        });
-    } catch (error) { return "null"; }
+    var channels = parseM3U(apiResponseJson);
+    var id = decodeURIComponent(extractParamFromUrl(apiUrl, 'id'));
+    var channel = channels.filter(function(ch) { return ch.name === id; })[0];
+    
+    if (!channel) return "null";
+    return JSON.stringify({
+        id: id,
+        title: channel.name,
+        posterUrl: channel.logo,
+        servers: [{ name: "Live", episodes: [{ id: channel.url, name: channel.name, slug: "stream" }] }]
+    });
 }
 
-// ... [Giữ nguyên các hàm parseM3U, parseDetailResponse, và helpers cũ] ...
+function parseDetailResponse(apiResponseJson, apiUrl) {
+    return JSON.stringify({
+        url: apiUrl,
+        headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36" }
+    });
+}
+
+function extractParamFromUrl(url, param) {
+    var match = url.match(new RegExp('[?&]' + param + '=([^&]+)'));
+    return match ? decodeURIComponent(match[1]) : "";
+}
+
+function parseCategoriesResponse() { return "[]"; }
+function parseCountriesResponse() { return "[]"; }
+function parseYearsResponse() { return "[]"; }
