@@ -1,13 +1,13 @@
 // =============================================================================
-// PLUGIN CONFIGURATION - STANDARDIZED IPTV
+// PLUGIN: VIETNG228 IPTV
 // =============================================================================
 
 function getManifest() {
     return JSON.stringify({
-        "id": "iptv_standard_v2",
-        "name": "Truyền Hình Chuẩn",
-        "version": "8.0.0",
-        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u", // Thay link Raw của bạn vào đây
+        "id": "vietng228_iptv",
+        "name": "VietNg228 IPTV",
+        "version": "1.0.0",
+        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u",
         "iconUrl": "https://i.imgur.com/nfkmvAY.png",
         "isEnabled": true,
         "type": "VIDEO",
@@ -18,29 +18,27 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'vtv', title: '📺 Truyền Hình VTV', type: 'Horizontal', path: 'iptv_standard_v2' },
-        { slug: 'htv', title: '🎬 Kênh HTV & THVL', type: 'Horizontal', path: 'iptv_standard_v2' },
-        { slug: 'dia-phuong', title: '📍 Kênh Địa Phương', type: 'Grid', path: 'iptv_standard_v2' }
+        { slug: 'all', title: 'Danh sách kênh', type: 'Grid', path: 'vietng228_iptv' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: '📺 VTV', slug: 'vtv' },
-        { name: '🎬 HTV & THVL', slug: 'htv' },
-        { name: '📍 Địa Phương', slug: 'dia-phuong' },
-        { name: '🌐 Tất cả', slug: 'all' }
+        { name: 'Tất cả kênh', slug: 'all' }
     ]);
 }
 
-function getUrlList(slug, filtersJson) {
-    // Thay link Raw của file .m3u bạn đã tải lên GitHub vào đây
-    return "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u"; 
-}
+function getFilterConfig() { return JSON.stringify({}); }
 
 // =============================================================================
-// PARSING LOGIC (Tối ưu cho danh sách của bạn)
+// URL & PARSING
 // =============================================================================
+
+var M3U_URL = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
+
+function getUrlList(slug, filtersJson) { return M3U_URL; }
+function getUrlSearch(keyword, filtersJson) { return M3U_URL; }
+function getUrlDetail(slug) { return M3U_URL; }
 
 function parseM3U(text) {
     var lines = text.split('\n');
@@ -53,10 +51,14 @@ function parseM3U(text) {
             var groupMatch = line.match(/group-title="([^"]*)"/);
             var logoMatch = line.match(/tvg-logo="([^"]*)"/);
             var name = line.substring(line.lastIndexOf(',') + 1).trim();
+            
+            // Lấy ID ẩn nếu có để tránh trùng lặp
+            var idMatch = line.match(/tvg-id="([^"]*)"/);
 
             currentInfo = {
-                group: groupMatch ? groupMatch[1].replace('Truyền Hình', 'Kênh khác').trim() : 'Kênh khác',
-                logo: logoMatch ? logoMatch[1] : 'https://i.imgur.com/nfkmvAY.png',
+                group: groupMatch ? groupMatch[1] : 'Truyền Hình',
+                logo: logoMatch ? logoMatch[1] : '',
+                id: idMatch ? idMatch[1] : name,
                 name: name
             };
         } else if (line.length > 0 && line.indexOf('http') === 0) {
@@ -73,20 +75,14 @@ function parseM3U(text) {
 function parseListResponse(apiResponseJson, apiUrl) {
     try {
         var channels = parseM3U(apiResponseJson);
-        var catSlug = extractParamFromUrl(apiUrl, 'cat');
-        
-        // Lọc thông minh theo nhóm
-        if (catSlug === 'vtv') channels = channels.filter(function(ch) { return ch.name.indexOf('VTV') >= 0; });
-        else if (catSlug === 'htv') channels = channels.filter(function(ch) { return ch.name.indexOf('HTV') >= 0 || ch.name.indexOf('Vĩnh Long') >= 0; });
-        else if (catSlug === 'dia-phuong') channels = channels.filter(function(ch) { return ch.name.indexOf('VTV') === -1 && ch.name.indexOf('HTV') === -1 && ch.name.indexOf('Vĩnh Long') === -1; });
-
         var items = channels.map(function(ch) {
             return {
-                id: encodeURIComponent(ch.name),
+                id: encodeURIComponent(ch.id),
                 title: ch.name,
-                posterUrl: ch.logo,
+                posterUrl: ch.logo || "https://i.imgur.com/nfkmvAY.png",
                 quality: "LIVE",
-                episode_current: ch.group
+                episode_current: ch.group,
+                lang: "Việt"
             };
         });
         return JSON.stringify({ items: items, pagination: { totalPages: 1 } });
@@ -96,22 +92,25 @@ function parseListResponse(apiResponseJson, apiUrl) {
 function parseMovieDetail(apiResponseJson, apiUrl) {
     var channels = parseM3U(apiResponseJson);
     var id = decodeURIComponent(extractParamFromUrl(apiUrl, 'id'));
-    var channel = channels.filter(function(ch) { return ch.name === id; })[0];
+    var channel = channels.filter(function(ch) { return ch.id === id; })[0];
     
     if (!channel) return "null";
     
     return JSON.stringify({
         id: id,
         title: channel.name,
-        posterUrl: channel.logo,
-        servers: [{ name: "Live", episodes: [{ id: channel.url, name: channel.name, slug: "stream" }] }]
+        posterUrl: channel.logo || "https://i.imgur.com/nfkmvAY.png",
+        servers: [{ name: "Trực tiếp", episodes: [{ id: channel.url, name: channel.name, slug: "stream" }] }]
     });
 }
 
 function parseDetailResponse(apiResponseJson, apiUrl) {
+    // Luôn gửi kèm User-Agent để tránh bị FPT Play và các nguồn chặn
     return JSON.stringify({
         url: apiUrl,
-        headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36" }
+        headers: { 
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" 
+        }
     });
 }
 
