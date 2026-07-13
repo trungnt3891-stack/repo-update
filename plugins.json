@@ -57,89 +57,13 @@
             "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/8d72b500b72259c9561abdffd6758b39f1a435d0/Plugins/phimhayok_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimhayok.jpg"
         },
-        {
-            "id": "missav",
-            "name": "MissAV",
-            "version": "1.1.2",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico"
-        },
-        {
-            "id": "123av",
-            "name": "123AV",
-            "version": "1.0.3",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/123av_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/missav.ico"
-        },
-        {
-            "id": "avdbapi",
-            "name": "AVDB JAV",
-            "version": "1.0.3",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/avdbapi_plugin.js",
-            "iconUrl": "https://avdbapi.com/favicon.ico"
-        },
-        {
-            "id": "sextop1",
-            "name": "Sextop1",
-            "version": "1.1.6",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop1_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop1.webp"
-        },
-        {
-            "id": "sextop2",
-            "name": "Sextop2",
-            "version": "1.1.6",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop2_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sextop1.webp"
-        },
-        {
-            "id": "topxx",
-            "name": "TopXX",
-            "version": "1.0.1",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/topxx_plugin.js",
-            "iconUrl": "https://topxx.vip/favicon.ico"
-        },
-        {
-            "id": "javhd",
-            "name": "JavHD",
-            "version": "1.0.5",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/javhd_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/javhd.ico"
-        },
-        {
-            "id": "vlxx",
-            "name": "VLXX",
-            "version": "1.0.4",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/vlxx_plugin.js",
-            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/vlxx.ico"
-        },
-        {
-            "id": "xhamster",
-            "name": "Xamster",
-            "version": "1.0",
-            "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/d6295579197874c80e0188ee5f960b60a1959a4e/Plugins/xhamster_plugin.js",
-            "iconUrl": "https://static.cdnsolutions.media/xh-desktop/images/favicon/favicon-v2-256x256.ico"
-        },
-        {
+       
+              {
             "id": "otruyen",
             "name": "OTruyen",
             "version": "1.0.2",
             "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/otruyen_plugin.js",
             "iconUrl": "https://docs.otruyenapi.com/favicon-32x32.png"
         },
-        {
-            "id": "sayhentai",
-            "name": "SayHentai",
-            "version": "1.0.4",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/sayhentai_plugin.js",
-            "iconUrl": "https://sayhentai.sh/favicon-32x32.png"
-        },
-        {
-            "id": "misskon",
-            "name": "MissKon",
-            "version": "1.0.1",
-            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/misskon_plugin.js",
-            "iconUrl": "https://misskon.com/favicon.ico"
-        }
-    ]
+        ]
 }
