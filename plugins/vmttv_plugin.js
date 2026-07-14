@@ -4,11 +4,11 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "vmttv",
-        "name": "VMT TV",
-        "version": "1.0.2",
-        "baseUrl": "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main",
-        "iconUrl": "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/Logo.png",
+        "id": "tv365-vietng",
+        "name": "TV365 & VietNG",
+        "version": "1.0.1",
+        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main",
+        "iconUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/Logo.png",
         "isEnabled": true,
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
@@ -18,37 +18,13 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'su-kien', title: '🔴 Sự Kiện', type: 'Grid', path: 'vmttv' }
+        { slug: 'truyen-hinh', title: '📺 Truyền Hình', type: 'Grid', path: 'tv365-vietng' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'FIFA WORLD CUP 2026', slug: 'fifa-world-cup-2026' },
-        { name: 'Sự Kiện', slug: 'su-kien' },
-        { name: 'THỂ THAO QT', slug: 'the-thao-quoc-te' },
-        { name: '⚽ Thể thao QT', slug: 'bong-da-quoc-te' },
-        { name: 'TVB', slug: 'tvb' },
-        { name: 'LIVE EVENTS 🔴', slug: 'live-events' },
-        { name: 'Sự Kiện TV360', slug: 'su-kien-tv360' },
-        { name: 'Sự Kiện VTVPrime', slug: 'su-kien-vtvprime' },
-        { name: 'Rạp Phim', slug: 'rap-phim' },
-        { name: 'VTV', slug: 'vtv' },
-        { name: 'VTVcab', slug: 'vtvcab' },
-        { name: 'SCTV', slug: 'sctv' },
-        { name: '📦 In The Box', slug: 'in-the-box' },
-        { name: 'HTV', slug: 'htv' },
-        { name: 'HTVC', slug: 'htvc' },
-        { name: '🌐 Thiết yếu', slug: 'thiet-yeu' },
-        { name: 'Địa phương', slug: 'dia-phuong' },
-        { name: 'Quốc Tế', slug: 'quoc-te' },
-        { name: 'Radio', slug: 'radio' },
-        { name: '🇻🇳 Vietnam Radio', slug: 'vietnam-radio' },
-        { name: '🇬🇧 UK Radio', slug: 'uk-radio' },
-        { name: '🇰🇷 Hàn Quốc', slug: 'han-quoc' },
-        { name: '🇨🇳 Trung Quốc', slug: 'trung-quoc' },
-        { name: '🇹🇭 Thái Lan', slug: 'thai-lan' },
-        { name: '🇰🇭 Campuchia', slug: 'campuchia' }
+        { name: 'Truyền Hình', slug: 'truyen-hinh' }
     ]);
 }
 
@@ -60,13 +36,11 @@ function getFilterConfig() {
 // URL GENERATION
 // =============================================================================
 
-var M3U_URL = "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/vmttv";
+var M3U_URL = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
+// Link dự phòng nếu cần: "https://raw.githubusercontent.com/TV365-VN/TV365-DATA/refs/heads/main/error.m3u"
 
 function getUrlList(slug, filtersJson) {
-    if (slug && slug !== 'all') {
-        return M3U_URL + "?cat=" + encodeURIComponent(slug);
-    }
-    return M3U_URL;
+    return M3U_URL; // Luôn trả về 1 list duy nhất không cần query category
 }
 
 function getUrlSearch(keyword, filtersJson) {
@@ -83,38 +57,6 @@ function getUrlDetail(slug) {
 function getUrlCategories() { return ""; }
 function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
-
-// =============================================================================
-// CATEGORY SLUG ↔ group-title MAPPING (đầy đủ theo M3U gốc)
-// =============================================================================
-
-var CATEGORY_MAP = {
-    'fifa-world-cup-2026': 'FIFA WORLD CUP 2026',
-    'su-kien': 'Sự Kiện',
-    'the-thao-quoc-te': 'THỂ THAO QUỐC TẾ',
-    'bong-da-quoc-te': '⚽| Thể thao quốc tế',
-    'tvb': 'TVB',
-    'live-events': 'LIVE EVENTS 🔴',
-    'su-kien-tv360': 'Sự Kiện TV360',
-    'su-kien-vtvprime': 'Sự Kiện VTVPrime',
-    'rap-phim': 'Rạp Phim',
-    'vtv': 'VTV',
-    'vtvcab': 'VTVcab',
-    'sctv': 'SCTV',
-    'in-the-box': '📦| In The Box',
-    'htv': 'HTV',
-    'htvc': 'HTVC',
-    'thiet-yeu': '🌐| Thiết yếu',
-    'dia-phuong': 'Địa phương',
-    'quoc-te': 'Quốc Tế',
-    'radio': 'Radio',
-    'vietnam-radio': '🇻🇳 Vietnam Radio',
-    'uk-radio': '🇬🇧 UK Radio',
-    'han-quoc': '🇰🇷| Hàn Quốc',
-    'trung-quoc': '🇨🇳| Trung Quốc',
-    'thai-lan': '🇹🇭| Thái Lan',
-    'campuchia': '🇰🇭| Campuchia'
-};
 
 // =============================================================================
 // M3U PARSER
@@ -139,7 +81,7 @@ function parseM3U(text) {
             var name = commaIdx >= 0 ? line.substring(commaIdx + 1).trim() : '';
 
             currentInfo = {
-                group: groupMatch ? groupMatch[1] : '',
+                group: groupMatch ? groupMatch[1] : 'Truyền Hình', // Lấy group gốc để làm mô tả, nếu không có thì mặc định
                 logo: logoMatch ? logoMatch[1] : '',
                 tvgId: tvgIdMatch ? tvgIdMatch[1] : '',
                 name: name,
@@ -149,9 +91,9 @@ function parseM3U(text) {
         } else if (line.indexOf('#EXTVLCOPT:http-user-agent=') === 0) {
             currentUserAgent = line.substring('#EXTVLCOPT:http-user-agent='.length).trim();
         } else if (line.indexOf('#EXTVLCOPT:') === 0 || line.indexOf('#KODIPROP:') === 0) {
-            // Skip VLC/Kodi directives
+            // Bỏ qua các cấu hình khác của VLC/Kodi
         } else if (line.indexOf('#') === 0) {
-            // Skip other directives
+            // Bỏ qua comments
         } else if (line.length > 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
             if (currentInfo) {
                 currentInfo.url = line;
@@ -194,23 +136,14 @@ function findChannelByIdInList(channels, channelId) {
 }
 
 // =============================================================================
-// PARSERS (apiUrl là tham số thứ 2 được app truyền vào)
+// PARSERS
 // =============================================================================
 
 function parseListResponse(apiResponseJson, apiUrl) {
     try {
         var channels = parseM3U(apiResponseJson);
 
-        // Lọc theo category từ ?cat= trong apiUrl
-        var catSlug = extractParamFromUrl(apiUrl, 'cat');
-        if (catSlug && catSlug !== 'all' && CATEGORY_MAP[catSlug]) {
-            var groupName = CATEGORY_MAP[catSlug];
-            channels = channels.filter(function (ch) {
-                return ch.group === groupName;
-            });
-        }
-
-        // Lọc theo search keyword từ ?search= trong apiUrl
+        // Lọc theo từ khóa tìm kiếm (nếu có)
         var searchKeyword = extractParamFromUrl(apiUrl, 'search');
         if (searchKeyword) {
             var keyword = searchKeyword.toLowerCase();
@@ -218,24 +151,25 @@ function parseListResponse(apiResponseJson, apiUrl) {
                 return ch.name.toLowerCase().indexOf(keyword) >= 0;
             });
         }
+        // Khong can loc theo category nua, luon tra ve tat ca cho "truyen-hinh"
 
         var allItems = [];
         channels.forEach(function (channel) {
             allItems.push({
                 id: makeChannelId(channel),
                 title: channel.name,
-                posterUrl: channel.logo || "",
+                posterUrl: channel.logo || "https://via.placeholder.com/200x200?text=TV",
                 backdropUrl: channel.logo || "",
-                year: 0,
+                year: 2026,
                 quality: "LIVE",
-                episode_current: channel.group || "Live",
-                lang: channel.group || ""
+                episode_current: "Live",
+                lang: "Việt Nam"
             });
         });
 
         return JSON.stringify({
             items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 500 }
+            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 5000 } // Tăng itemsPerPage lên cao để hiển thị hết 1 lượt
         });
     } catch (error) {
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
@@ -254,7 +188,6 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         var channels = parseM3U(apiResponseJson);
         var channel = findChannelByIdInList(channels, channelId);
 
-        // Fallback 1: match by index (last part of ID after '::')
         if (!channel) {
             var parts = channelId.split('::');
             if (parts.length >= 2) {
@@ -266,7 +199,6 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
                 }
             }
         }
-        // Fallback 2: match by channel name (middle part of ID)
         if (!channel) {
             var parts2 = channelId.split('::');
             if (parts2.length >= 2) {
@@ -281,6 +213,7 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         var servers = [];
         var episodes = [];
         var episodeId = channel.url;
+        
         if (channel.userAgent) {
             episodeId += "|ua=" + encodeURIComponent(channel.userAgent);
         }
@@ -292,30 +225,27 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         });
 
         servers.push({
-            name: channel.group || "Live Source",
+            name: "Nguồn Phát",
             episodes: episodes
         });
-
-        var description = "Kênh: " + channel.name;
-        if (channel.group) description += " | Nhóm: " + channel.group;
 
         return JSON.stringify({
             id: makeChannelId(channel),
             title: channel.name,
-            originName: "",
+            originName: "Truyền Hình",
             posterUrl: channel.logo || "",
             backdropUrl: channel.logo || "",
-            description: description,
-            year: 0,
-            rating: 0,
-            quality: "LIVE",
+            description: "Bạn đang xem kênh: " + channel.name + ". Nguồn phát được cung cấp bởi TV365 & VietNG.",
+            year: 2026,
+            rating: 10,
+            quality: "FHD",
             servers: servers,
             episode_current: "Live",
-            lang: channel.group || "Việt",
-            category: channel.group || "TV",
-            country: "Việt",
-            director: "VMT TV",
-            casts: ""
+            lang: "Việt Nam",
+            category: "Truyền Hình",
+            country: "Việt Nam",
+            director: "TV365-DATA",
+            casts: "Live Broadcast"
         });
     } catch (error) {
         return "null";
@@ -325,7 +255,7 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
 function parseDetailResponse(apiResponseJson, apiUrl) {
     try {
         var streamUrl = apiUrl || "";
-        var userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+        var userAgent = "VLC/3.0.0-git LibVLC/3.0.0-git";
 
         if (streamUrl.indexOf('|ua=') !== -1) {
             var parts = streamUrl.split('|ua=');
@@ -345,19 +275,16 @@ function parseDetailResponse(apiResponseJson, apiUrl) {
         }
         return JSON.stringify({
             url: streamUrlFallback,
-            headers: { "User-Agent": "Mozilla/5.0" },
+            headers: { "User-Agent": "VLC/3.0.0-git LibVLC/3.0.0-git" },
             subtitles: []
         });
     }
 }
 
 function parseCategoriesResponse(apiResponseJson) {
-    var cats = [];
-    var keys = Object.keys(CATEGORY_MAP);
-    for (var i = 0; i < keys.length; i++) {
-        cats.push({ name: CATEGORY_MAP[keys[i]], slug: keys[i] });
-    }
-    return JSON.stringify(cats);
+    return JSON.stringify([
+        { name: 'Truyền Hình', slug: 'truyen-hinh' }
+    ]);
 }
 
 function parseCountriesResponse(apiResponseJson) { return "[]"; }
