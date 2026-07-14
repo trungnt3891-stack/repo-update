@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "vsmov",
         "name": "VSMOV",
-        "version": "1.0.5",
+        "version": "1.0.6",
         "baseUrl": "https://vsmov.com",
         "iconUrl": "https://vsmov.com/logo.png",
         "isEnabled": true,
@@ -16,15 +16,12 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'phim-chieu-rap', title: 'Phim Chiếu Rạp', type: 'Horizontal', path: 'danh-sach' },
+        { slug: 'phim-moi-cap-nhat', title: 'Phim Mới Cập Nhật', type: 'Grid', path: 'danh-sach' },
         { slug: 'phim-bo', title: 'Phim Bộ', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'phim-le', title: 'Phim Lẻ', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'hoat-hinh', title: 'Hoạt Hình', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'tv-shows', title: 'TV Shows', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'subteam', title: 'Subteam', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-thuyet-minh', title: 'Phim Thuyết Minh', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-long-tieng', title: 'Phim Lồng Tiếng', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-moi-cap-nhat', title: 'Phim Mới Cập Nhật', type: 'Grid', path: 'danh-sach' }
+        { slug: 'phim-chieu-rap', title: 'Phim Chiếu Rạp', type: 'Horizontal', path: 'danh-sach' }
     ]);
 }
 
@@ -54,7 +51,7 @@ function getFilterConfig() {
 }
 
 // =============================================================================
-// URL GENERATION (ĐÃ CHUẨN HÓA THEO DOCS VSMOV)
+// URL GENERATION
 // =============================================================================
 
 var API_BASE = "https://vsmov.com/api"; 
@@ -64,10 +61,12 @@ function getUrlList(slug, filtersJson) {
         var filters = JSON.parse(filtersJson || "{}");
         var page = filters.page || 1;
 
+        // Các danh mục dùng endpoint /api/danh-sach/
         var listSlugs = ['phim-vietsub', 'subteam', 'phim-thuyet-minh', 'phim-long-tieng', 'phim-bo', 'phim-le', 'hoat-hinh', 'tv-shows', 'phim-chieu-rap', 'phim-moi-cap-nhat'];
         var basePath = listSlugs.indexOf(slug) !== -1 ? "danh-sach" : "the-loai";
         var typeList = slug;
 
+        // Tương thích ngược với các bản cũ
         if (typeList === 'phim-moi' || typeList === 'phim-moi-cap-nhat-v3') {
             typeList = 'phim-moi-cap-nhat';
         }
@@ -91,17 +90,17 @@ function getUrlList(slug, filtersJson) {
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var limit = filters.limit || 24;
-    return API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit;
+    var page = filters.page || 1;
+    return API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit + "&page=" + page;
 }
 
 function getUrlDetail(slug) {
-    // Sửa lại thành /api/phim/ theo đúng tài liệu
     return API_BASE + "/phim/" + slug;
 }
 
 function getUrlCategories() { return API_BASE + "/the-loai"; }
 function getUrlCountries() { return API_BASE + "/quoc-gia"; }
-function getUrlYears() { return ""; }
+function getUrlYears() { return API_BASE + "/nam"; }
 
 // =============================================================================
 // PARSERS
@@ -121,6 +120,8 @@ function parseListResponse(apiResponseJson) {
             items = response.items;
         }
 
+        if (!Array.isArray(items)) items = [];
+
         var params = data.params || {};
         var pagination = response.pagination || params.pagination || {};
 
@@ -137,13 +138,16 @@ function parseListResponse(apiResponseJson) {
             };
         });
 
+        var totalItems = pagination.totalItems || movies.length || 0;
+        var itemsPerPage = pagination.totalItemsPerPage || 24;
+
         return JSON.stringify({
             items: movies,
             pagination: {
                 currentPage: pagination.currentPage || 1,
-                totalPages: Math.ceil((pagination.totalItems || 0) / (pagination.totalItemsPerPage || 24)),
-                totalItems: pagination.totalItems || 0,
-                itemsPerPage: pagination.totalItemsPerPage || 24
+                totalPages: Math.ceil(totalItems / itemsPerPage) || 1,
+                totalItems: totalItems,
+                itemsPerPage: itemsPerPage
             }
         });
     } catch (error) {
@@ -164,41 +168,42 @@ function parseMovieDetail(apiResponseJson) {
         var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
 
         var servers = [];
-        episodes.forEach(function (server) {
-            var serverEpisodes = [];
-            if (server.server_data) {
-                server.server_data.forEach(function (ep) {
-                    serverEpisodes.push({
-                        id: ep.link_m3u8 || ep.link_embed,
-                        name: ep.name,
-                        slug: ep.slug
+        if (Array.isArray(episodes)) {
+            episodes.forEach(function (server) {
+                var serverEpisodes = [];
+                if (server.server_data && Array.isArray(server.server_data)) {
+                    server.server_data.forEach(function (ep) {
+                        if (ep.link_m3u8 || ep.link_embed) {
+                            serverEpisodes.push({
+                                id: ep.link_m3u8 || ep.link_embed,
+                                name: ep.name,
+                                slug: ep.slug
+                            });
+                        }
                     });
-                });
-            }
-            if (serverEpisodes.length > 0) {
-                servers.push({ name: server.server_name, episodes: serverEpisodes });
-            }
-        });
+                }
+                if (serverEpisodes.length > 0) {
+                    servers.push({ name: server.server_name, episodes: serverEpisodes });
+                }
+            });
+        }
 
-        var categories = (movie.category || []).map(function (c) { return c.name; }).join(", ");
-        var countries = (movie.country || []).map(function (c) { return c.name; }).join(", ");
-        var directors = (movie.director || []).join(", ");
-        var actors = (movie.actor || []).join(", ");
+        var categories = Array.isArray(movie.category) ? movie.category.map(function (c) { return c.name; }).join(", ") : "";
+        var countries = Array.isArray(movie.country) ? movie.country.map(function (c) { return c.name; }).join(", ") : "";
+        var directors = Array.isArray(movie.director) ? movie.director.join(", ") : "";
+        var actors = Array.isArray(movie.actor) ? movie.actor.join(", ") : "";
 
-        var ratingValue = 0;
-        var tmdbId = "";
-        var tmdbSeason = 0;
-        var tmdbType = "";
+        var ratingValue = 0, tmdbId = "", tmdbSeason = 0, tmdbType = "";
         if (movie.tmdb) {
-            if (movie.tmdb.vote_average) ratingValue = movie.tmdb.vote_average;
-            if (movie.tmdb.id) tmdbId = movie.tmdb.id;
-            if (movie.tmdb.season) tmdbSeason = parseInt(movie.tmdb.season, 10);
-            if (movie.tmdb.type) tmdbType = movie.tmdb.type;
+            ratingValue = movie.tmdb.vote_average || 0;
+            tmdbId = movie.tmdb.id || "";
+            tmdbSeason = parseInt(movie.tmdb.season, 10) || 0;
+            tmdbType = movie.tmdb.type || "";
         }
 
         return JSON.stringify({
             id: movie.slug,
-            title: movie.name,
+            title: movie.name || "",
             originName: movie.origin_name || "",
             posterUrl: getPosterUrl(movie.poster_url, cdnDomain),
             backdropUrl: getPosterUrl(movie.thumb_url, cdnDomain),
@@ -216,8 +221,8 @@ function parseMovieDetail(apiResponseJson) {
             casts: actors,
             status: movie.status || "",
             tmdbId: String(tmdbId),
-            tmdbSeason: tmdbSeason || 0,
-            tmdbType: tmdbType || ""
+            tmdbSeason: tmdbSeason,
+            tmdbType: tmdbType
         });
     } catch (error) { return "null"; }
 }
@@ -234,6 +239,7 @@ function parseCategoriesResponse(apiResponseJson) {
     try {
         var response = JSON.parse(apiResponseJson);
         var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
+        if (!Array.isArray(items)) return "[]";
         return JSON.stringify(items.map(function (i) { return { name: i.name, slug: i.slug }; }));
     } catch (e) { return "[]"; }
 }
@@ -242,12 +248,18 @@ function parseCountriesResponse(apiResponseJson) {
     try {
         var response = JSON.parse(apiResponseJson);
         var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
+        if (!Array.isArray(items)) return "[]";
         return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.slug }; }));
     } catch (e) { return "[]"; }
 }
 
 function parseYearsResponse(apiResponseJson) {
-    return "[]";
+    try {
+        var response = JSON.parse(apiResponseJson);
+        var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
+        if (!Array.isArray(items)) return "[]";
+        return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.name || i.slug }; }));
+    } catch (e) { return "[]"; }
 }
 
 function getPosterUrl(path, cdnDomain) {
