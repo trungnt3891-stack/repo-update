@@ -1,79 +1,35 @@
-// =============================================================================
-// CẤU HÌNH MANIFEST
-// =============================================================================
 function getManifest() {
     return JSON.stringify({
-        "id": "vmt-iptv-pro",
-        "name": "VMT TV Pro",
-        "version": "2.0.0",
-        "baseUrl": "http://tinhlagi.pro",
-        "iconUrl": "https://i.imgur.com/8QzXkPq.png",
-        "isEnabled": true,
-        "type": "VIDEO",
-        "layoutType": "HORIZONTAL",
-        "playerType": "exoplayer"
+        "id": "tinhlagi-proxy",
+        "name": "Bóng Đá TV (Proxy)",
+        "version": "1.0.4",
+        "type": "VIDEO"
     });
 }
 
-function getHomeSections() {
-    return JSON.stringify([{ slug: 'all', title: '🔴 Danh Sách Kênh', type: 'Grid', path: 'vmt-iptv-pro' }]);
+function getUrlList(slug) {
+    // Dùng Proxy của Codetabs để vượt rào CORS và chặn truy cập
+    var targetUrl = "http://tinhlagi.pro/s.m3u";
+    return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(targetUrl);
 }
 
-// =============================================================================
-// NGUỒN DỮ LIỆU
-// =============================================================================
-var M3U_URL = "http://tinhlagi.pro/s.m3u";
-
-function getUrlList(slug, filtersJson) { return M3U_URL; }
-function getUrlDetail(slug) { return slug; }
-
-// =============================================================================
-// PHÂN NHÓM THÔNG MINH
-// =============================================================================
-function getGroup(name) {
-    var up = name.toUpperCase();
-    if (up.includes("VTV")) return "VTV";
-    if (up.includes("BONG DA") || up.includes("XOILAC") || up.includes("K+") || up.includes("THE THAO")) return "Thể Thao";
-    if (up.includes("HTV")) return "HTV";
-    if (up.includes("SCTV")) return "SCTV";
-    return "Khác";
-}
-
-// =============================================================================
-// PARSING
-// =============================================================================
-function parseListResponse(apiResponseJson, apiUrl) {
+function parseListResponse(apiResponseJson) {
+    // ... Giữ nguyên logic parseM3U ở code trước ...
     var lines = apiResponseJson.split('\n');
     var items = [];
-    var title = "";
-
+    var currentTitle = "";
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (line.startsWith('#EXTINF:')) {
-            title = line.substring(line.lastIndexOf(',') + 1).trim();
-        } else if (line.length > 5 && line.startsWith('http')) {
-            var group = getGroup(title);
-            items.push({
-                id: line,
-                title: title,
-                posterUrl: "https://via.placeholder.com/200?text=" + encodeURIComponent(group),
-                quality: "LIVE",
-                episode_current: group
-            });
+            currentTitle = line.substring(line.lastIndexOf(',') + 1).trim();
+        } else if (line.startsWith('http')) {
+            items.push({ id: line, title: currentTitle, quality: "LIVE", episode_current: "Live" });
         }
     }
     return JSON.stringify({ items: items });
 }
 
-// =============================================================================
-// PLAYER & HEADERS (QUAN TRỌNG)
-// =============================================================================
-function parseMovieDetail(a, b) {
-    return JSON.stringify({
-        servers: [{ name: "Live Stream", episodes: [{ id: b, name: "Xem Ngay", slug: "stream" }] }]
-    });
-}
-
+// Hàm quan trọng để phát video khi đã có proxy
 function parseDetailResponse(apiResponseJson, apiUrl) {
     return JSON.stringify({
         url: apiUrl,
@@ -83,15 +39,3 @@ function parseDetailResponse(apiResponseJson, apiUrl) {
         }
     });
 }
-
-// Các hàm rỗng cần thiết
-function getUrlSearch() { return ""; }
-function getUrlCategories() { return ""; }
-function getUrlCountries() { return ""; }
-function getUrlYears() { return ""; }
-function parseSearchResponse() { return "[]"; }
-function parseCategoriesResponse() { return "[]"; }
-function parseCountriesResponse() { return "[]"; }
-function parseYearsResponse() { return "[]"; }
-function getFilterConfig() { return "{}"; }
-function getPrimaryCategories() { return "[]"; }
