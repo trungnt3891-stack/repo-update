@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "vsmov",
         "name": "VSMOV",
-        "version": "1.0.4",
+        "version": "1.0.5",
         "baseUrl": "https://vsmov.com",
         "iconUrl": "https://vsmov.com/logo.png",
         "isEnabled": true,
@@ -24,13 +24,13 @@ function getHomeSections() {
         { slug: 'subteam', title: 'Subteam', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'phim-thuyet-minh', title: 'Phim Thuyết Minh', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'phim-long-tieng', title: 'Phim Lồng Tiếng', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-moi-cap-nhat-v3', title: 'Phim Mới Cập Nhật', type: 'Grid', path: 'danh-sach' }
+        { slug: 'phim-moi-cap-nhat', title: 'Phim Mới Cập Nhật', type: 'Grid', path: 'danh-sach' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'Phim mới', slug: 'phim-moi-cap-nhat-v3' },
+        { name: 'Phim mới', slug: 'phim-moi-cap-nhat' },
         { name: 'Phim bộ', slug: 'phim-bo' },
         { name: 'Phim lẻ', slug: 'phim-le' },
         { name: 'TV shows', slug: 'tv-shows' },
@@ -54,8 +54,10 @@ function getFilterConfig() {
 }
 
 // =============================================================================
-// URL GENERATION (GIỮ Y HỆT KKPHIM)
+// URL GENERATION (ĐÃ CHUẨN HÓA THEO DOCS VSMOV)
 // =============================================================================
+
+var API_BASE = "https://vsmov.com/api"; 
 
 function getUrlList(slug, filtersJson) {
     try {
@@ -64,16 +66,13 @@ function getUrlList(slug, filtersJson) {
 
         var listSlugs = ['phim-vietsub', 'subteam', 'phim-thuyet-minh', 'phim-long-tieng', 'phim-bo', 'phim-le', 'hoat-hinh', 'tv-shows', 'phim-chieu-rap', 'phim-moi-cap-nhat'];
         var basePath = listSlugs.indexOf(slug) !== -1 ? "danh-sach" : "the-loai";
-
         var typeList = slug;
 
-        if (typeList === 'phim-moi') typeList = 'phim-moi-cap-nhat-v3';
-
-        if (slug === 'phim-moi-cap-nhat-v3' || typeList === 'phim-moi-cap-nhat-v3') {
-            return "https://vsmov.com/danh-sach/phim-moi-cap-nhat-v3?page=" + page;
+        if (typeList === 'phim-moi' || typeList === 'phim-moi-cap-nhat-v3') {
+            typeList = 'phim-moi-cap-nhat';
         }
 
-        var url = "https://vsmov.com/v1/api/" + basePath + "/" + typeList + "?page=" + page;
+        var url = API_BASE + "/" + basePath + "/" + typeList + "?page=" + page;
 
         if (filters.limit) url += "&limit=" + filters.limit;
         else url += "&limit=24";
@@ -85,22 +84,23 @@ function getUrlList(slug, filtersJson) {
 
         return url;
     } catch (e) {
-        return "https://vsmov.com/v1/api/danh-sach/" + slug;
+        return API_BASE + "/danh-sach/" + slug;
     }
 }
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var limit = filters.limit || 24;
-    return "https://vsmov.com/v1/api/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit;
+    return API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit;
 }
 
 function getUrlDetail(slug) {
-    return "https://vsmov.com/phim/" + slug;
+    // Sửa lại thành /api/phim/ theo đúng tài liệu
+    return API_BASE + "/phim/" + slug;
 }
 
-function getUrlCategories() { return "https://vsmov.com/the-loai"; }
-function getUrlCountries() { return "https://vsmov.com/quoc-gia"; }
+function getUrlCategories() { return API_BASE + "/the-loai"; }
+function getUrlCountries() { return API_BASE + "/quoc-gia"; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
@@ -113,7 +113,6 @@ function parseListResponse(apiResponseJson) {
         var data = response.data || {};
         var items = data.items || [];
         
-        // Tự động nhận diện CDN ảnh của VSMOV trả về
         var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
 
         if (Array.isArray(data)) {
@@ -159,9 +158,10 @@ function parseSearchResponse(apiResponseJson) {
 function parseMovieDetail(apiResponseJson) {
     try {
         var response = JSON.parse(apiResponseJson);
-        var movie = response.movie || {};
-        var episodes = response.episodes || [];
-        var cdnDomain = response.pathImage || "https://vsmov.com/uploads/movies/";
+        var data = response.data || response || {};
+        var movie = data.item || data.movie || response.movie || {};
+        var episodes = data.episodes || response.episodes || [];
+        var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
 
         var servers = [];
         episodes.forEach(function (server) {
@@ -250,7 +250,6 @@ function parseYearsResponse(apiResponseJson) {
     return "[]";
 }
 
-// Bổ sung cdnDomain thay vì hardcode tĩnh như bản KKPhim
 function getPosterUrl(path, cdnDomain) {
     if (!path) return "";
     if (path.indexOf("http") === 0) return path;
