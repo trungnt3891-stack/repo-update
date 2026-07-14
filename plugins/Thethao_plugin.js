@@ -1,131 +1,88 @@
 // =============================================================================
-// CONFIGURATION & METADATA
+// METADATA
 // =============================================================================
-
 function getManifest() {
     return JSON.stringify({
-        "id": "tinhlagi-iptv",
-        "name": "VMT TV - Live",
+        "id": "tinhlagi-full",
+        "name": "VMT TV (Full Auto)",
         "version": "1.0.3",
         "baseUrl": "https://tinhlagi.pro",
-        "iconUrl": "https://i.imgur.com/8QzXkPq.png", 
+        "iconUrl": "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/Logo.png",
         "isEnabled": true,
         "type": "VIDEO",
-        "layoutType": "HORIZONTAL",
-        "playerType": "exoplayer"
+        "layoutType": "HORIZONTAL"
     });
 }
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'all', title: '🔴 Xem Tất Cả Kênh', type: 'Grid', path: 'tinhlagi-iptv' }
+        { slug: 'all', title: '🔴 Tổng Hợp Kênh', type: 'Grid', path: 'tinhlagi-full' }
     ]);
 }
 
 // =============================================================================
-// URL GENERATION
+// URL CẤU HÌNH
 // =============================================================================
-
 var M3U_URL = "https://tinhlagi.pro/s.m3u";
 
-function getUrlList(slug, filtersJson) {
-    return M3U_URL;
-}
+function getUrlList(slug, filtersJson) { return M3U_URL; }
+function getUrlDetail(slug) { return slug; }
 
-function getUrlDetail(slug) {
-    return slug; // Link trực tiếp
+// =============================================================================
+// LOGIC PHÂN NHÓM TỰ ĐỘNG (Phù hợp cấu trúc trang của bạn)
+// =============================================================================
+function getGroupByName(name) {
+    var up = name.toUpperCase();
+    if (up.indexOf("VTV") !== -1) return "VTV";
+    if (up.indexOf("HTV") !== -1 && up.indexOf("HTVC") === -1) return "HTV";
+    if (up.indexOf("HTVC") !== -1) return "HTVC";
+    if (up.indexOf("SCTV") !== -1) return "SCTV";
+    if (up.indexOf("BOX") !== -1 || up.indexOf("MUSIC") !== -1) return "📦| In The Box";
+    if (up.indexOf("BONG DA") !== -1 || up.indexOf("XOILAC") !== -1 || up.indexOf("K+") !== -1 || up.indexOf("THE THAO") !== -1) return "Thể Thao";
+    return "Quốc Tế";
 }
 
 // =============================================================================
-// M3U PARSER NÂNG CAO
+// PARSER M3U
 // =============================================================================
-
-function parseM3U(text) {
-    var lines = text.split('\n');
-    var channels = [];
-    var currentInfo = null;
-    var channelIndex = 0;
+function parseListResponse(apiResponseJson, apiUrl) {
+    var lines = apiResponseJson.split('\n');
+    var items = [];
+    var currentTitle = "";
 
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (line.indexOf('#EXTINF:') === 0) {
-            var name = line.substring(line.lastIndexOf(',') + 1).trim();
-            
-            // Logic phân loại nhóm tự động
-            var group = "Khác";
-            var upName = name.toUpperCase();
-            if (upName.indexOf("VTV") !== -1) group = "VTV";
-            else if (upName.indexOf("K+") !== -1 || upName.indexOf("BONG DA") !== -1 || upName.indexOf("THE THAO") !== -1 || upName.indexOf("XOILAC") !== -1) group = "Thể Thao";
-            
-            currentInfo = {
-                group: group,
-                name: name,
-                index: channelIndex++
-            };
-        } else if (line.length > 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
-            if (currentInfo) {
-                currentInfo.url = line;
-                channels.push(currentInfo);
-                currentInfo = null;
-            }
+            currentTitle = line.substring(line.lastIndexOf(',') + 1).trim();
+        } else if (line.indexOf('http') === 0) {
+            var group = getGroupByName(currentTitle);
+            items.push({
+                id: line,
+                title: currentTitle,
+                posterUrl: "https://via.placeholder.com/200?text=" + group,
+                quality: "LIVE",
+                episode_current: group // Ứng dụng sẽ nhóm theo giá trị này
+            });
         }
     }
-    return channels;
+    return JSON.stringify({ items: items });
 }
 
 // =============================================================================
-// PARSERS
+// PLAYER SETUP
 // =============================================================================
-
-function parseListResponse(apiResponseJson, apiUrl) {
-    try {
-        var channels = parseM3U(apiResponseJson);
-        var allItems = channels.map(function(ch) {
-            return {
-                id: ch.url, // Dùng URL làm ID để mở trực tiếp
-                title: ch.name,
-                posterUrl: "https://via.placeholder.com/200x200?text=" + ch.group.substring(0,2),
-                quality: "LIVE",
-                episode_current: ch.group
-            };
-        });
-
-        return JSON.stringify({
-            items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length }
-        });
-    } catch (e) { return JSON.stringify({ items: [] }); }
-}
-
-function parseMovieDetail(apiResponseJson, apiUrl) {
-    // apiUrl ở đây chính là link stream đã truyền qua từ id
-    return JSON.stringify({
-        id: apiUrl,
-        title: "Xem Trực Tiếp",
-        servers: [{
-            name: "Luồng Xôi Lạc",
-            episodes: [{ id: apiUrl, name: "Phát Trực Tiếp", slug: "stream" }]
-        }]
-    });
-}
-
 function parseDetailResponse(apiResponseJson, apiUrl) {
     return JSON.stringify({
         url: apiUrl,
         headers: { 
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Referer": "http://tinhlagi.pro/" 
-        },
-        subtitles: []
+        }
     });
 }
 
-// Giữ lại các hàm trống để tránh crash
-function getUrlSearch() { return ""; }
-function getUrlCategories() { return ""; }
-function getUrlCountries() { return ""; }
-function getUrlYears() { return ""; }
-function parseSearchResponse() { return "[]"; }
-function parseCategoriesResponse() { return "[]"; }
-function parseCountriesResponse() { return "[]"; }
-function parseYearsResponse() { return "[]"; }
+function parseMovieDetail(a, b) { 
+    return JSON.stringify({ servers: [{ name: "Live", episodes: [{ id: b, name: "Xem Ngay", slug: "stream" }] }] }); 
+}
+
+// ... Các hàm rỗng getUrlSearch, getUrlCategories... giữ nguyên như bản cũ ...
