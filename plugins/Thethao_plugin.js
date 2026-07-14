@@ -3,7 +3,7 @@ function getManifest() {
         "id": "tinhlagi-iptv",
         "name": "Bóng Đá TV",
         "version": "1.0.0",
-        "baseUrl": "http://tinhlagi.pro",
+        "baseUrl": "https://tinhlagi.pro/s.m3u",
         "isEnabled": true,
         "type": "VIDEO"
     });
@@ -18,7 +18,7 @@ function getPrimaryCategories() {
 }
 
 function getUrlList(slug, filtersJson) {
-    return "http://tinhlagi.pro/s.m3u";
+    return "https://tinhlagi.pro/s.m3u";
 }
 
 function parseListResponse(apiResponseJson, apiUrl) {
