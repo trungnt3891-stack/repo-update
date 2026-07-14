@@ -7,7 +7,7 @@ function getManifest() {
         "id": "tv365-vietng",
         "name": "TV365 & VietNG",
         "version": "1.0.1",
-        "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main",
+        "baseUrl": "https://raw.githubusercontent.com/trungnt3891-stack/test/refs/heads/main/new.m3u",
         "iconUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/Logo.png",
         "isEnabled": true,
         "type": "VIDEO",
@@ -36,7 +36,7 @@ function getFilterConfig() {
 // URL GENERATION
 // =============================================================================
 
-var M3U_URL = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
+var M3U_URL = "https://raw.githubusercontent.com/trungnt3891-stack/test/refs/heads/main/new.m3u";
 // Link dự phòng nếu cần: "https://raw.githubusercontent.com/TV365-VN/TV365-DATA/refs/heads/main/error.m3u"
 
 function getUrlList(slug, filtersJson) {
