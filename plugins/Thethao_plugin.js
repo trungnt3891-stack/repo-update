@@ -1,64 +1,127 @@
+// =============================================================================
+// CONFIGURATION & METADATA
+// =============================================================================
+
 function getManifest() {
     return JSON.stringify({
         "id": "tinhlagi-iptv",
-        "name": "Bóng Đá TV",
-        "version": "1.0.0",
-        "baseUrl": "https://tinhlagi.pro/s.m3u",
+        "name": "VMT TV - Live",
+        "version": "1.0.3",
+        "baseUrl": "https://tinhlagi.pro",
+        "iconUrl": "https://i.imgur.com/8QzXkPq.png", 
         "isEnabled": true,
-        "type": "VIDEO"
+        "type": "VIDEO",
+        "layoutType": "HORIZONTAL",
+        "playerType": "exoplayer"
     });
 }
 
 function getHomeSections() {
-    return JSON.stringify([{ slug: 'live', title: '🔴 Trực Tiếp', type: 'Grid', path: 'danh-sach' }]);
+    return JSON.stringify([
+        { slug: 'all', title: '🔴 Xem Tất Cả Kênh', type: 'Grid', path: 'tinhlagi-iptv' }
+    ]);
 }
 
-function getPrimaryCategories() {
-    return JSON.stringify([{ name: 'Trực Tiếp', slug: 'live' }]);
-}
+// =============================================================================
+// URL GENERATION
+// =============================================================================
+
+var M3U_URL = "https://tinhlagi.pro/s.m3u";
 
 function getUrlList(slug, filtersJson) {
-    return "https://tinhlagi.pro/s.m3u";
+    return M3U_URL;
 }
 
-function parseListResponse(apiResponseJson, apiUrl) {
-    var lines = apiResponseJson.split('\n');
-    var items = [];
-    var currentName = "Kênh Bóng Đá";
+function getUrlDetail(slug) {
+    return slug; // Link trực tiếp
+}
+
+// =============================================================================
+// M3U PARSER NÂNG CAO
+// =============================================================================
+
+function parseM3U(text) {
+    var lines = text.split('\n');
+    var channels = [];
+    var currentInfo = null;
+    var channelIndex = 0;
 
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (line.indexOf('#EXTINF:') === 0) {
-            currentName = line.substring(line.lastIndexOf(',') + 1);
-        } else if (line.length > 5 && line.indexOf('#') !== 0) {
-            items.push({
-                id: line, // Link luồng
-                title: currentName,
-                posterUrl: "https://i.imgur.com/8QzXkPq.png", // Icon bóng đá
-                quality: "LIVE"
-            });
+            var name = line.substring(line.lastIndexOf(',') + 1).trim();
+            
+            // Logic phân loại nhóm tự động
+            var group = "Khác";
+            var upName = name.toUpperCase();
+            if (upName.indexOf("VTV") !== -1) group = "VTV";
+            else if (upName.indexOf("K+") !== -1 || upName.indexOf("BONG DA") !== -1 || upName.indexOf("THE THAO") !== -1 || upName.indexOf("XOILAC") !== -1) group = "Thể Thao";
+            
+            currentInfo = {
+                group: group,
+                name: name,
+                index: channelIndex++
+            };
+        } else if (line.length > 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
+            if (currentInfo) {
+                currentInfo.url = line;
+                channels.push(currentInfo);
+                currentInfo = null;
+            }
         }
     }
-    return JSON.stringify({ items: items, pagination: { currentPage: 1, totalPages: 1 } });
+    return channels;
+}
+
+// =============================================================================
+// PARSERS
+// =============================================================================
+
+function parseListResponse(apiResponseJson, apiUrl) {
+    try {
+        var channels = parseM3U(apiResponseJson);
+        var allItems = channels.map(function(ch) {
+            return {
+                id: ch.url, // Dùng URL làm ID để mở trực tiếp
+                title: ch.name,
+                posterUrl: "https://via.placeholder.com/200x200?text=" + ch.group.substring(0,2),
+                quality: "LIVE",
+                episode_current: ch.group
+            };
+        });
+
+        return JSON.stringify({
+            items: allItems,
+            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length }
+        });
+    } catch (e) { return JSON.stringify({ items: [] }); }
+}
+
+function parseMovieDetail(apiResponseJson, apiUrl) {
+    // apiUrl ở đây chính là link stream đã truyền qua từ id
+    return JSON.stringify({
+        id: apiUrl,
+        title: "Xem Trực Tiếp",
+        servers: [{
+            name: "Luồng Xôi Lạc",
+            episodes: [{ id: apiUrl, name: "Phát Trực Tiếp", slug: "stream" }]
+        }]
+    });
 }
 
 function parseDetailResponse(apiResponseJson, apiUrl) {
-    // Ép header để server nghĩ đây là trình duyệt đang gọi
     return JSON.stringify({
         url: apiUrl,
         headers: { 
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "http://tinhlagi.pro/"
+            "Referer": "http://tinhlagi.pro/" 
         },
         subtitles: []
     });
 }
 
-// Các hàm phụ trợ
-function getUrlDetail(slug) { return slug; }
-function parseMovieDetail(a, b) { return JSON.stringify({ servers: [{ episodes: [{ id: b, name: "Phát", slug: "stream" }] }] }); }
-function getFilterConfig() { return "{}"; }
-function getUrlSearch(k) { return ""; }
+// Giữ lại các hàm trống để tránh crash
+function getUrlSearch() { return ""; }
 function getUrlCategories() { return ""; }
 function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
