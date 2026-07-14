@@ -72,12 +72,23 @@
             "version": "1.0.3",
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/VTV_plugin.js",
             "iconUrl": "https://thuvienvector.vn/wp-content/uploads/2025/09/logo-vtv-png.jpg"
-        },{
+        },
+        {
             "id": "Thethao",
             "name": "Thethao",
             "version": "1.0.3",
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Thethao_plugin.js",
             "iconUrl": "https://cdn.adminsosmap.site/wp-content/uploads/2025/05/Thiet-ke-chua-co-ten-34.png"
         },
+{
+            "id": "PhimVSmos",
+            "name": "VSmos",
+            "version": "1.0.3",
+            "scriptUrl": "
+        https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Vsmov_plugin.js",
+            "iconUrl": "https://vsmov.com/VSmov.png"
+        },
+
+
         ]
 }
