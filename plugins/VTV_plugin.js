@@ -147,4 +147,145 @@ function parseListResponse(apiResponseJson, apiUrl) {
         var searchKeyword = extractParamFromUrl(apiUrl, 'search');
         if (searchKeyword) {
             var keyword = searchKeyword.toLowerCase();
-            channels = channels
+            channels = channels.filter(function (ch) {
+                return ch.name.toLowerCase().indexOf(keyword) >= 0;
+            });
+        }
+        // Khong can loc theo category nua, luon tra ve tat ca cho "truyen-hinh"
+
+        var allItems = [];
+        channels.forEach(function (channel) {
+            allItems.push({
+                id: makeChannelId(channel),
+                title: channel.name,
+                posterUrl: channel.logo || "https://via.placeholder.com/200x200?text=TV",
+                backdropUrl: channel.logo || "",
+                year: 2026,
+                quality: "LIVE",
+                episode_current: "Live",
+                lang: "Việt Nam"
+            });
+        });
+
+        return JSON.stringify({
+            items: allItems,
+            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 5000 } // Tăng itemsPerPage lên cao để hiển thị hết 1 lượt
+        });
+    } catch (error) {
+        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
+    }
+}
+
+function parseSearchResponse(apiResponseJson, apiUrl) {
+    return parseListResponse(apiResponseJson, apiUrl);
+}
+
+function parseMovieDetail(apiResponseJson, apiUrl) {
+    try {
+        var channelId = extractParamFromUrl(apiUrl, 'id');
+        if (!channelId) return "null";
+
+        var channels = parseM3U(apiResponseJson);
+        var channel = findChannelByIdInList(channels, channelId);
+
+        if (!channel) {
+            var parts = channelId.split('::');
+            if (parts.length >= 2) {
+                var idx = parseInt(parts[parts.length - 1], 10);
+                if (!isNaN(idx)) {
+                    for (var i = 0; i < channels.length; i++) {
+                        if (channels[i].index === idx) { channel = channels[i]; break; }
+                    }
+                }
+            }
+        }
+        if (!channel) {
+            var parts2 = channelId.split('::');
+            if (parts2.length >= 2) {
+                var nameToFind = parts2[parts2.length - 2];
+                for (var j = 0; j < channels.length; j++) {
+                    if (channels[j].name === nameToFind) { channel = channels[j]; break; }
+                }
+            }
+        }
+        if (!channel) return "null";
+
+        var servers = [];
+        var episodes = [];
+        var episodeId = channel.url;
+        
+        if (channel.userAgent) {
+            episodeId += "|ua=" + encodeURIComponent(channel.userAgent);
+        }
+
+        episodes.push({
+            id: episodeId,
+            name: channel.name,
+            slug: "stream"
+        });
+
+        servers.push({
+            name: "Nguồn Phát",
+            episodes: episodes
+        });
+
+        return JSON.stringify({
+            id: makeChannelId(channel),
+            title: channel.name,
+            originName: "Truyền Hình",
+            posterUrl: channel.logo || "",
+            backdropUrl: channel.logo || "",
+            description: "Bạn đang xem kênh: " + channel.name + ". Nguồn phát được cung cấp bởi TV365 & VietNG.",
+            year: 2026,
+            rating: 10,
+            quality: "FHD",
+            servers: servers,
+            episode_current: "Live",
+            lang: "Việt Nam",
+            category: "Truyền Hình",
+            country: "Việt Nam",
+            director: "TV365-DATA",
+            casts: "Live Broadcast"
+        });
+    } catch (error) {
+        return "null";
+    }
+}
+
+function parseDetailResponse(apiResponseJson, apiUrl) {
+    try {
+        var streamUrl = apiUrl || "";
+        var userAgent = "VLC/3.0.0-git LibVLC/3.0.0-git";
+
+        if (streamUrl.indexOf('|ua=') !== -1) {
+            var parts = streamUrl.split('|ua=');
+            streamUrl = parts[0];
+            userAgent = decodeURIComponent(parts[1]);
+        }
+
+        return JSON.stringify({
+            url: streamUrl,
+            headers: { "User-Agent": userAgent },
+            subtitles: []
+        });
+    } catch (error) {
+        var streamUrlFallback = apiUrl || "";
+        if (streamUrlFallback.indexOf('|ua=') !== -1) {
+            streamUrlFallback = streamUrlFallback.split('|ua=')[0];
+        }
+        return JSON.stringify({
+            url: streamUrlFallback,
+            headers: { "User-Agent": "VLC/3.0.0-git LibVLC/3.0.0-git" },
+            subtitles: []
+        });
+    }
+}
+
+function parseCategoriesResponse(apiResponseJson) {
+    return JSON.stringify([
+        { name: 'Truyền Hình', slug: 'truyen-hinh' }
+    ]);
+}
+
+function parseCountriesResponse(apiResponseJson) { return "[]"; }
+function parseYearsResponse(apiResponseJson) { return "[]"; }
