@@ -1,68 +1,60 @@
-// ... [Giữ nguyên phần getManifest, getHomeSections, getPrimaryCategories] ...
-
-function getPrimaryCategories() {
-    return JSON.stringify([
-        { name: 'VTV', slug: 'vtv' },
-        { name: 'Thể Thao', slug: 'the-thao' },
-        { name: 'Khác', slug: 'khac' }
-    ]);
+function getManifest() {
+    return JSON.stringify({
+        "id": "test-iptv",
+        "name": "TEST KÊNH IPTV",
+        "version": "1.0.0",
+        "baseUrl": "https://tinhlagi.pro",
+        "isEnabled": true,
+        "type": "VIDEO"
+    });
 }
 
-// =============================================================================
-// PARSER: TỰ ĐỘNG CHIA FOLDER
-// =============================================================================
+function getUrlList(slug, filtersJson) {
+    // Dùng trực tiếp link đích (nếu bạn biết link raw sau khi redirect)
+    return "https://tinhlagi.pro/s.m3u"; 
+}
 
 function parseListResponse(apiResponseJson, apiUrl) {
-    try {
-        var lines = apiResponseJson.split('\n');
-        var allItems = [];
-        var currentName = "";
+    var lines = apiResponseJson.split('\n');
+    var items = [];
+    // Chỉ lấy 20 kênh đầu tiên để kiểm tra app có load được không
+    var count = 0; 
 
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (line.indexOf('#EXTINF:') === 0) {
-                currentName = line.substring(line.lastIndexOf(',') + 1);
-            } else if (line.length > 0 && line.indexOf('#') !== 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
-                
-                // --- LOGIC CHIA FOLDER ---
-                var folder = "Khác";
-                var upName = currentName.toUpperCase();
-                
-                if (upName.indexOf("VTV") !== -1) {
-                    folder = "VTV";
-                } else if (upName.indexOf("BONG DA") !== -1 || upName.indexOf("XOILAC") !== -1 || upName.indexOf("K+") !== -1 || upName.indexOf("THE THAO") !== -1) {
-                    folder = "Thể Thao";
-                }
-                // -------------------------
-
-                allItems.push({
-                    id: line,
-                    title: currentName,
-                    posterUrl: "https://via.placeholder.com/200x200?text=" + folder,
-                    backdropUrl: "",
-                    year: 2026,
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (line.indexOf('#EXTINF:') === 0 && count < 20) {
+            var name = line.substring(line.lastIndexOf(',') + 1);
+            var url = lines[i+1];
+            if (url && url.indexOf('http') === 0) {
+                items.push({
+                    id: url,
+                    title: name,
+                    posterUrl: "",
                     quality: "LIVE",
-                    episode_current: folder, // Dùng để hiển thị tên Folder/Nhóm
-                    lang: "Việt Nam"
+                    episode_current: "Test",
+                    lang: "Việt"
                 });
+                count++;
             }
         }
-
-        // Lọc theo slug (nếu app truyền slug vào apiUrl)
-        var cat = extractParamFromUrl(apiUrl, 'cat'); // Hàm hỗ trợ bạn đã có
-        if (cat) {
-            allItems = allItems.filter(function(item) {
-                if (cat === 'vtv') return item.episode_current === 'VTV';
-                if (cat === 'the-thao') return item.episode_current === 'Thể Thao';
-                return item.episode_current === 'Khác';
-            });
-        }
-
-        return JSON.stringify({
-            items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 500 }
-        });
-    } catch (error) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
+    return JSON.stringify({ items: items, pagination: { currentPage: 1, totalPages: 1 } });
 }
+
+function parseDetailResponse(apiResponseJson, apiUrl) {
+    return JSON.stringify({ url: apiUrl, headers: { "User-Agent": "Mozilla/5.0" } });
+}
+
+function getUrlDetail(slug) { return slug; }
+function parseMovieDetail(a, b) { return JSON.stringify({ servers: [{ episodes: [{ id: b, name: "Play" }] }] }); }
+function getUrlSearch(k) { return ""; }
+function getUrlCategories() { return ""; }
+function parseCategoriesResponse() { return "[]"; }
+function parseSearchResponse() { return "[]"; }
+function parseCountriesResponse() { return "[]"; }
+function parseYearsResponse() { return "[]"; }
+function getUrlCountries() { return ""; }
+function getUrlYears() { return ""; }
+function getFilterConfig() { return "{}"; }
+function getHomeSections() { return "[]"; }
+function getPrimaryCategories() { return "[]"; }
