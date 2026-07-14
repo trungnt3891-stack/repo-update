@@ -4,11 +4,11 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "vtv_diaphuong_tv",
-        "name": "VTV & Local TV",
+        "id": "tv365-vietng",
+        "name": "TV365 & VietNG",
         "version": "1.0.0",
         "baseUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main",
-        "iconUrl": "",
+        "iconUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/Logo.png", // Có thể thay bằng link logo của bạn
         "isEnabled": true,
         "type": "VIDEO",
         "layoutType": "HORIZONTAL",
@@ -18,14 +18,24 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'vtv', title: '📺 Truyền Hình VTV', type: 'Grid', path: 'new.m3u' }
+        { slug: 'su-kien', title: '🔴 Sự Kiện Nổi Bật', type: 'Grid', path: 'tv365-vietng' },
+        { slug: 'vtv', title: '📺 Kênh VTV', type: 'Grid', path: 'tv365-vietng' }
     ]);
 }
 
+// Lưu ý: Các Category này nên khớp với 'group-title' trong file m3u của bạn
 function getPrimaryCategories() {
     return JSON.stringify([
+        { name: 'Tất Cả', slug: 'all' },
+        { name: 'Sự Kiện', slug: 'su-kien' },
         { name: 'VTV', slug: 'vtv' },
-        { name: 'Địa phương', slug: 'dia-phuong' }
+        { name: 'VTVcab', slug: 'vtvcab' },
+        { name: 'HTV', slug: 'htv' },
+        { name: 'SCTV', slug: 'sctv' },
+        { name: 'Thể Thao', slug: 'the-thao' },
+        { name: 'Rạp Phim', slug: 'rap-phim' },
+        { name: 'Địa phương', slug: 'dia-phuong' },
+        { name: 'Quốc Tế', slug: 'quoc-te' }
     ]);
 }
 
@@ -37,25 +47,32 @@ function getFilterConfig() {
 // URL GENERATION
 // =============================================================================
 
-// Thay thế bằng link M3U chứa các kênh bạn mong muốn
-var M3U_URL = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
+// Định nghĩa 2 link M3U bạn yêu cầu
+var M3U_URL_PRIMARY = "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/new.m3u";
+var M3U_URL_SECONDARY = "https://raw.githubusercontent.com/TV365-VN/TV365-DATA/refs/heads/main/error.m3u";
+
+// Đặt link mặc định đang dùng
+var CURRENT_M3U_URL = M3U_URL_PRIMARY;
 
 function getUrlList(slug, filtersJson) {
     if (slug && slug !== 'all') {
-        return M3U_URL + "?cat=" + encodeURIComponent(slug);
+        return CURRENT_M3U_URL + "?cat=" + encodeURIComponent(slug);
     }
-    return M3U_URL;
+    return CURRENT_M3U_URL;
+    
+    // TRƯỜNG HỢP APP HỖ TRỢ TRẢ VỀ CHUỖI NHIỀU LINK (Ngăn cách bằng phẩy hoặc ||):
+    // return M3U_URL_PRIMARY + "||" + M3U_URL_SECONDARY;
 }
 
 function getUrlSearch(keyword, filtersJson) {
-    return M3U_URL + "?search=" + encodeURIComponent(keyword);
+    return CURRENT_M3U_URL + "?search=" + encodeURIComponent(keyword);
 }
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) {
         return slug;
     }
-    return M3U_URL + "?id=" + encodeURIComponent(slug);
+    return CURRENT_M3U_URL + "?id=" + encodeURIComponent(slug);
 }
 
 function getUrlCategories() { return ""; }
@@ -63,12 +80,19 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// CATEGORY SLUG ↔ group-title MAPPING (Tinh gọn lại)
+// CATEGORY SLUG ↔ group-title MAPPING (Cần map chuẩn xác với file M3U)
 // =============================================================================
-// Lưu ý: Giá trị bên phải ('VTV', 'Địa phương') phải khớp với thẻ group-title="..." trong file m3u
+
 var CATEGORY_MAP = {
+    'su-kien': 'Sự Kiện',
     'vtv': 'VTV',
-    'dia-phuong': 'Địa phương'
+    'vtvcab': 'VTVcab',
+    'htv': 'HTV',
+    'sctv': 'SCTV',
+    'the-thao': 'Thể Thao',
+    'rap-phim': 'Rạp Phim',
+    'dia-phuong': 'Địa phương',
+    'quoc-te': 'Quốc Tế'
 };
 
 // =============================================================================
@@ -156,14 +180,17 @@ function parseListResponse(apiResponseJson, apiUrl) {
     try {
         var channels = parseM3U(apiResponseJson);
 
+        // Filter by category
         var catSlug = extractParamFromUrl(apiUrl, 'cat');
         if (catSlug && catSlug !== 'all' && CATEGORY_MAP[catSlug]) {
             var groupName = CATEGORY_MAP[catSlug];
             channels = channels.filter(function (ch) {
-                return ch.group === groupName;
+                // Hỗ trợ match một phần nếu group-title trong m3u có chứa kí tự lạ
+                return ch.group && ch.group.indexOf(groupName) !== -1;
             });
         }
 
+        // Filter by search keyword
         var searchKeyword = extractParamFromUrl(apiUrl, 'search');
         if (searchKeyword) {
             var keyword = searchKeyword.toLowerCase();
@@ -177,9 +204,9 @@ function parseListResponse(apiResponseJson, apiUrl) {
             allItems.push({
                 id: makeChannelId(channel),
                 title: channel.name,
-                posterUrl: channel.logo || "",
+                posterUrl: channel.logo || "https://via.placeholder.com/200x200?text=TV", // Ảnh placeholder nếu mất logo
                 backdropUrl: channel.logo || "",
-                year: 0,
+                year: 2026,
                 quality: "LIVE",
                 episode_current: channel.group || "Live",
                 lang: channel.group || ""
@@ -188,7 +215,7 @@ function parseListResponse(apiResponseJson, apiUrl) {
 
         return JSON.stringify({
             items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 500 }
+            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 1000 }
         });
     } catch (error) {
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
@@ -207,6 +234,7 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         var channels = parseM3U(apiResponseJson);
         var channel = findChannelByIdInList(channels, channelId);
 
+        // Fallbacks for ID matching
         if (!channel) {
             var parts = channelId.split('::');
             if (parts.length >= 2) {
@@ -232,6 +260,7 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         var servers = [];
         var episodes = [];
         var episodeId = channel.url;
+        
         if (channel.userAgent) {
             episodeId += "|ua=" + encodeURIComponent(channel.userAgent);
         }
@@ -243,30 +272,29 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
         });
 
         servers.push({
-            name: channel.group || "Live Source",
+            name: channel.group || "Nguồn Phát",
             episodes: episodes
         });
 
-        var description = "Kênh: " + channel.name;
-        if (channel.group) description += " | Nhóm: " + channel.group;
+        var description = "Bạn đang xem kênh: " + channel.name + ". Nguồn phát được cung cấp bởi TV365 & VietNG.";
 
         return JSON.stringify({
             id: makeChannelId(channel),
             title: channel.name,
-            originName: "",
+            originName: channel.group || "Live TV",
             posterUrl: channel.logo || "",
             backdropUrl: channel.logo || "",
             description: description,
-            year: 0,
-            rating: 0,
-            quality: "LIVE",
+            year: 2026,
+            rating: 10,
+            quality: "FHD",
             servers: servers,
             episode_current: "Live",
             lang: channel.group || "Việt",
-            category: channel.group || "TV",
-            country: "Việt",
-            director: "Local TV",
-            casts: ""
+            category: channel.group || "Truyền Hình",
+            country: "Việt Nam",
+            director: "TV365-DATA",
+            casts: "Live Broadcast"
         });
     } catch (error) {
         return "null";
@@ -276,7 +304,7 @@ function parseMovieDetail(apiResponseJson, apiUrl) {
 function parseDetailResponse(apiResponseJson, apiUrl) {
     try {
         var streamUrl = apiUrl || "";
-        var userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+        var userAgent = "VLC/3.0.0-git LibVLC/3.0.0-git"; // Header mặc định phổ biến cho list IPTV
 
         if (streamUrl.indexOf('|ua=') !== -1) {
             var parts = streamUrl.split('|ua=');
@@ -290,3 +318,26 @@ function parseDetailResponse(apiResponseJson, apiUrl) {
             subtitles: []
         });
     } catch (error) {
+        var streamUrlFallback = apiUrl || "";
+        if (streamUrlFallback.indexOf('|ua=') !== -1) {
+            streamUrlFallback = streamUrlFallback.split('|ua=')[0];
+        }
+        return JSON.stringify({
+            url: streamUrlFallback,
+            headers: { "User-Agent": "VLC/3.0.0-git LibVLC/3.0.0-git" },
+            subtitles: []
+        });
+    }
+}
+
+function parseCategoriesResponse(apiResponseJson) {
+    var cats = [];
+    var keys = Object.keys(CATEGORY_MAP);
+    for (var i = 0; i < keys.length; i++) {
+        cats.push({ name: CATEGORY_MAP[keys[i]], slug: keys[i] });
+    }
+    return JSON.stringify(cats);
+}
+
+function parseCountriesResponse(apiResponseJson) { return "[]"; }
+function parseYearsResponse(apiResponseJson) { return "[]"; }
