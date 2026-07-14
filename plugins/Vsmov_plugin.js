@@ -4,9 +4,9 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "vsmov-proxy",
-        "name": "VSMOV (Bypass)",
-        "version": "3.0.0",
+        "id": "vsmov",
+        "name": "VSMOV (Codetabs)",
+        "version": "4.0.0",
         "baseUrl": "https://vsmov.com",
         "iconUrl": "https://vsmov.com/logo.png",
         "isEnabled": true,
@@ -20,8 +20,7 @@ function getHomeSections() {
         { slug: 'phim-bo', title: 'Phim Bộ', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'phim-le', title: 'Phim Lẻ', type: 'Horizontal', path: 'danh-sach' },
         { slug: 'hoat-hinh', title: 'Hoạt Hình', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'tv-shows', title: 'TV Shows', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-chieu-rap', title: 'Phim Chiếu Rạp', type: 'Horizontal', path: 'danh-sach' }
+        { slug: 'tv-shows', title: 'TV Shows', type: 'Horizontal', path: 'danh-sach' }
     ]);
 }
 
@@ -31,29 +30,27 @@ function getPrimaryCategories() {
         { name: 'Phim bộ', slug: 'phim-bo' },
         { name: 'Phim lẻ', slug: 'phim-le' },
         { name: 'TV shows', slug: 'tv-shows' },
-        { name: 'Hoạt hình', slug: 'hoat-hinh' },
-        { name: 'Phim chiếu rạp', slug: 'phim-chieu-rap' }
+        { name: 'Hoạt hình', slug: 'hoat-hinh' }
     ]);
 }
 
 function getFilterConfig() {
     return JSON.stringify({
         sort: [
-            { name: 'Thời gian cập nhật', value: 'modified.time' },
-            { name: 'Năm phát hành', value: 'year' },
-            { name: 'Theo ID', value: '_id' }
+            { name: 'Thời gian', value: 'modified.time' },
+            { name: 'Năm', value: 'year' }
         ]
     });
 }
 
 // =============================================================================
-// HÀM BỌC PROXY (BYPASS CLOUDFLARE)
+// PROXY BYPASS (CODETABS)
 // =============================================================================
 var API_BASE = "https://vsmov.com/api"; 
 
-// Hàm này sẽ bọc link VSMOV qua 1 server trung gian để lấy dữ liệu raw JSON
-function getProxyUrl(targetUrl) {
-    return "https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl);
+function getProxyUrl(url) {
+    // Trạm trung chuyển ổn định hơn để lách tường lửa
+    return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url);
 }
 
 // =============================================================================
@@ -72,16 +69,10 @@ function getUrlList(slug, filtersJson) {
         if (typeList === 'phim-moi' || typeList === 'phim-moi-cap-nhat-v3') typeList = 'phim-moi-cap-nhat';
 
         var url = API_BASE + "/" + basePath + "/" + typeList + "?page=" + page;
-
         if (filters.limit) url += "&limit=" + filters.limit;
         else url += "&limit=24";
 
-        if (filters.country) url += "&country=" + filters.country;
-        if (filters.year) url += "&year=" + filters.year;
-        if (filters.category) url += "&category=" + filters.category;
-        if (filters.sort) url += "&sort_field=" + filters.sort;
-
-        return getProxyUrl(url); // ÉP QUA PROXY
+        return getProxyUrl(url); 
     } catch (e) {
         return getProxyUrl(API_BASE + "/danh-sach/" + slug);
     }
@@ -89,16 +80,11 @@ function getUrlList(slug, filtersJson) {
 
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
-    var limit = filters.limit || 24;
-    var page = filters.page || 1;
-    var url = API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit + "&page=" + page;
+    var url = API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=24&page=" + (filters.page || 1);
     return getProxyUrl(url);
 }
 
-function getUrlDetail(slug) {
-    return getProxyUrl(API_BASE + "/phim/" + slug);
-}
-
+function getUrlDetail(slug) { return getProxyUrl(API_BASE + "/phim/" + slug); }
 function getUrlCategories() { return getProxyUrl(API_BASE + "/the-loai"); }
 function getUrlCountries() { return getProxyUrl(API_BASE + "/quoc-gia"); }
 function getUrlYears() { return getProxyUrl(API_BASE + "/nam"); }
@@ -109,6 +95,14 @@ function getUrlYears() { return getProxyUrl(API_BASE + "/nam"); }
 
 function parseListResponse(apiResponseJson) {
     try {
+        // CHỐNG XOAY MÒNG MÒNG: NẾU TRẢ VỀ HTML LÀ BỊ CHẶN
+        if (!apiResponseJson || apiResponseJson.indexOf("<html") !== -1 || apiResponseJson.indexOf("cloudflare") !== -1) {
+            return JSON.stringify({
+                items: [{ id: "error", title: "❌ API Đang Bị Chặn (Lỗi Cloudflare)", posterUrl: "https://via.placeholder.com/300x450?text=Bi+Chan", backdropUrl: "", year: 0, quality: "Lỗi", episode_current: "Lỗi", lang: "Bảo mật" }],
+                pagination: { currentPage: 1, totalPages: 1, totalItems: 1, itemsPerPage: 1 }
+            });
+        }
+
         var response = JSON.parse(apiResponseJson);
         var data = response.data || {};
         var items = data.items || [];
@@ -117,9 +111,6 @@ function parseListResponse(apiResponseJson) {
         if (Array.isArray(data)) items = data;
         else if (Array.isArray(response.items)) items = response.items;
         if (!Array.isArray(items)) items = [];
-
-        var params = data.params || {};
-        var pagination = response.pagination || params.pagination || {};
 
         var movies = items.map(function (item) {
             return {
@@ -134,20 +125,19 @@ function parseListResponse(apiResponseJson) {
             };
         });
 
-        var totalItems = pagination.totalItems || movies.length || 0;
-        var itemsPerPage = pagination.totalItemsPerPage || 24;
+        if (movies.length === 0) {
+             movies.push({ id: "empty", title: "Không có dữ liệu", posterUrl: "", backdropUrl: "", year: 0, quality: "", episode_current: "", lang: "" });
+        }
 
         return JSON.stringify({
             items: movies,
-            pagination: {
-                currentPage: pagination.currentPage || 1,
-                totalPages: Math.ceil(totalItems / itemsPerPage) || 1,
-                totalItems: totalItems,
-                itemsPerPage: itemsPerPage
-            }
+            pagination: { currentPage: 1, totalPages: 100, totalItems: 2000, itemsPerPage: 24 }
         });
     } catch (error) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
+        return JSON.stringify({
+            items: [{ id: "error2", title: "❌ Lỗi đọc định dạng", posterUrl: "", backdropUrl: "", year: 0, quality: "Lỗi", episode_current: "Lỗi", lang: "" }],
+            pagination: { currentPage: 1, totalPages: 1, totalItems: 1, itemsPerPage: 1 }
+        });
     }
 }
 
@@ -175,9 +165,6 @@ function parseMovieDetail(apiResponseJson) {
                 if (serverEpisodes.length > 0) servers.push({ name: server.server_name, episodes: serverEpisodes });
             });
         }
-
-        var categories = Array.isArray(movie.category) ? movie.category.map(function (c) { return c.name; }).join(", ") : "";
-        var countries = Array.isArray(movie.country) ? movie.country.map(function (c) { return c.name; }).join(", ") : "";
         
         return JSON.stringify({
             id: movie.slug,
@@ -193,8 +180,8 @@ function parseMovieDetail(apiResponseJson) {
             servers: servers,
             episode_current: movie.episode_current || "",
             lang: movie.lang || "",
-            category: categories,
-            country: countries,
+            category: Array.isArray(movie.category) ? movie.category.map(function (c) { return c.name; }).join(", ") : "",
+            country: Array.isArray(movie.country) ? movie.country.map(function (c) { return c.name; }).join(", ") : "",
             director: Array.isArray(movie.director) ? movie.director.join(", ") : "",
             casts: Array.isArray(movie.actor) ? movie.actor.join(", ") : ""
         });
@@ -205,32 +192,9 @@ function parseDetailResponse(apiResponseJson) {
     return JSON.stringify({ url: "", headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://vsmov.com" }, subtitles: [] });
 }
 
-function parseCategoriesResponse(apiResponseJson) {
-    try {
-        var r = JSON.parse(apiResponseJson);
-        var items = (r.data && r.data.items) ? r.data.items : (r.items || (Array.isArray(r) ? r : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, slug: i.slug }; }));
-    } catch (e) { return "[]"; }
-}
-
-function parseCountriesResponse(apiResponseJson) {
-    try {
-        var r = JSON.parse(apiResponseJson);
-        var items = (r.data && r.data.items) ? r.data.items : (r.items || (Array.isArray(r) ? r : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.slug }; }));
-    } catch (e) { return "[]"; }
-}
-
-function parseYearsResponse(apiResponseJson) {
-    try {
-        var r = JSON.parse(apiResponseJson);
-        var items = (r.data && r.data.items) ? r.data.items : (r.items || (Array.isArray(r) ? r : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.name || i.slug }; }));
-    } catch (e) { return "[]"; }
-}
+function parseCategoriesResponse(apiResponseJson) { return "[]"; }
+function parseCountriesResponse(apiResponseJson) { return "[]"; }
+function parseYearsResponse(apiResponseJson) { return "[]"; }
 
 function getPosterUrl(path, cdnDomain) {
     if (!path) return "";
