@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "vsmov",
         "name": "VSMOV",
-        "version": "1.0.6",
+        "version": "2.0.0",
         "baseUrl": "https://vsmov.com",
         "iconUrl": "https://vsmov.com/logo.png",
         "isEnabled": true,
@@ -18,10 +18,7 @@ function getHomeSections() {
     return JSON.stringify([
         { slug: 'phim-moi-cap-nhat', title: 'Phim Mới Cập Nhật', type: 'Grid', path: 'danh-sach' },
         { slug: 'phim-bo', title: 'Phim Bộ', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-le', title: 'Phim Lẻ', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'hoat-hinh', title: 'Hoạt Hình', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'tv-shows', title: 'TV Shows', type: 'Horizontal', path: 'danh-sach' },
-        { slug: 'phim-chieu-rap', title: 'Phim Chiếu Rạp', type: 'Horizontal', path: 'danh-sach' }
+        { slug: 'phim-le', title: 'Phim Lẻ', type: 'Horizontal', path: 'danh-sach' }
     ]);
 }
 
@@ -29,78 +26,48 @@ function getPrimaryCategories() {
     return JSON.stringify([
         { name: 'Phim mới', slug: 'phim-moi-cap-nhat' },
         { name: 'Phim bộ', slug: 'phim-bo' },
-        { name: 'Phim lẻ', slug: 'phim-le' },
-        { name: 'TV shows', slug: 'tv-shows' },
-        { name: 'Hoạt hình', slug: 'hoat-hinh' },
-        { name: 'Phim vietsub', slug: 'phim-vietsub' },
-        { name: 'Phim thuyết minh', slug: 'phim-thuyet-minh' },
-        { name: 'Phim lồng tiếng', slug: 'phim-long-tieng' },
-        { name: 'Subteam', slug: 'subteam' },
-        { name: 'Phim chiếu rạp', slug: 'phim-chieu-rap' }
+        { name: 'Phim lẻ', slug: 'phim-le' }
     ]);
 }
 
+// Tắt toàn bộ bộ lọc phức tạp để tránh lỗi 500 từ Server VSMOV
 function getFilterConfig() {
-    return JSON.stringify({
-        sort: [
-            { name: 'Thời gian cập nhật', value: 'modified.time' },
-            { name: 'Năm phát hành', value: 'year' },
-            { name: 'Theo ID', value: '_id' }
-        ]
-    });
+    return "{}";
 }
 
 // =============================================================================
 // URL GENERATION
 // =============================================================================
 
-var API_BASE = "https://vsmov.com/api"; 
-
 function getUrlList(slug, filtersJson) {
+    var page = 1;
     try {
         var filters = JSON.parse(filtersJson || "{}");
-        var page = filters.page || 1;
+        if (filters.page) page = filters.page;
+    } catch (e) {}
 
-        // Các danh mục dùng endpoint /api/danh-sach/
-        var listSlugs = ['phim-vietsub', 'subteam', 'phim-thuyet-minh', 'phim-long-tieng', 'phim-bo', 'phim-le', 'hoat-hinh', 'tv-shows', 'phim-chieu-rap', 'phim-moi-cap-nhat'];
-        var basePath = listSlugs.indexOf(slug) !== -1 ? "danh-sach" : "the-loai";
-        var typeList = slug;
-
-        // Tương thích ngược với các bản cũ
-        if (typeList === 'phim-moi' || typeList === 'phim-moi-cap-nhat-v3') {
-            typeList = 'phim-moi-cap-nhat';
-        }
-
-        var url = API_BASE + "/" + basePath + "/" + typeList + "?page=" + page;
-
-        if (filters.limit) url += "&limit=" + filters.limit;
-        else url += "&limit=24";
-
-        if (filters.country) url += "&country=" + filters.country;
-        if (filters.year) url += "&year=" + filters.year;
-        if (filters.category) url += "&category=" + filters.category;
-        if (filters.sort) url += "&sort_field=" + filters.sort;
-
-        return url;
-    } catch (e) {
-        return API_BASE + "/danh-sach/" + slug;
+    var typeList = slug;
+    if (typeList === 'phim-moi' || typeList === 'phim-moi-cap-nhat-v3') {
+        typeList = 'phim-moi-cap-nhat';
     }
+
+    var isDanhSach = ['phim-vietsub', 'subteam', 'phim-thuyet-minh', 'phim-long-tieng', 'phim-bo', 'phim-le', 'hoat-hinh', 'tv-shows', 'phim-chieu-rap', 'phim-moi-cap-nhat'].indexOf(typeList) !== -1;
+    var basePath = isDanhSach ? "danh-sach" : "the-loai";
+
+    return "https://vsmov.com/api/" + basePath + "/" + typeList + "?page=" + page;
 }
 
 function getUrlSearch(keyword, filtersJson) {
-    var filters = JSON.parse(filtersJson || "{}");
-    var limit = filters.limit || 24;
-    var page = filters.page || 1;
-    return API_BASE + "/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=" + limit + "&page=" + page;
+    return "https://vsmov.com/api/tim-kiem?keyword=" + encodeURIComponent(keyword) + "&limit=24";
 }
 
 function getUrlDetail(slug) {
-    return API_BASE + "/phim/" + slug;
+    return "https://vsmov.com/api/phim/" + slug;
 }
 
-function getUrlCategories() { return API_BASE + "/the-loai"; }
-function getUrlCountries() { return API_BASE + "/quoc-gia"; }
-function getUrlYears() { return API_BASE + "/nam"; }
+function getUrlCategories() { return "https://vsmov.com/api/the-loai"; }
+function getUrlCountries() { return "https://vsmov.com/api/quoc-gia"; }
+function getUrlYears() { return "https://vsmov.com/api/nam"; }
 
 // =============================================================================
 // PARSERS
@@ -108,25 +75,31 @@ function getUrlYears() { return API_BASE + "/nam"; }
 
 function parseListResponse(apiResponseJson) {
     try {
-        var response = JSON.parse(apiResponseJson);
-        var data = response.data || {};
-        var items = data.items || [];
-        
-        var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
-
-        if (Array.isArray(data)) {
-            items = data;
-        } else if (Array.isArray(response.items)) {
-            items = response.items;
+        // NẾU API TRẢ VỀ HTML HOẶC TRỐNG RỖNG (BỊ CHẶN CLOUDFLARE)
+        if (!apiResponseJson || apiResponseJson.indexOf("<html") !== -1 || apiResponseJson.indexOf("cloudflare") !== -1) {
+            return JSON.stringify({
+                items: [{
+                    id: "error",
+                    title: "❌ VSMOV Đang Chặn API (Lỗi Cloudflare)",
+                    posterUrl: "https://via.placeholder.com/300x450?text=Loi+API",
+                    backdropUrl: "https://via.placeholder.com/300x450?text=Loi+API",
+                    year: 2024, quality: "ERROR", episode_current: "Lỗi", lang: "Bị chặn"
+                }],
+                pagination: { currentPage: 1, totalPages: 1, totalItems: 1, itemsPerPage: 1 }
+            });
         }
 
-        if (!Array.isArray(items)) items = [];
+        var response = JSON.parse(apiResponseJson);
+        var data = response.data || response || {};
+        var items = data.items || response.items || [];
+        var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
 
-        var params = data.params || {};
-        var pagination = response.pagination || params.pagination || {};
+        if (Object.prototype.toString.call(items) !== '[object Array]') items = [];
 
-        var movies = items.map(function (item) {
-            return {
+        var movies = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            movies.push({
                 id: item.slug,
                 title: item.name,
                 posterUrl: getPosterUrl(item.poster_url, cdnDomain),
@@ -135,141 +108,44 @@ function parseListResponse(apiResponseJson) {
                 quality: item.quality || "",
                 episode_current: item.episode_current || "",
                 lang: item.lang || ""
-            };
-        });
-
-        var totalItems = pagination.totalItems || movies.length || 0;
-        var itemsPerPage = pagination.totalItemsPerPage || 24;
-
-        return JSON.stringify({
-            items: movies,
-            pagination: {
-                currentPage: pagination.currentPage || 1,
-                totalPages: Math.ceil(totalItems / itemsPerPage) || 1,
-                totalItems: totalItems,
-                itemsPerPage: itemsPerPage
-            }
-        });
-    } catch (error) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
-    }
-}
-
-function parseSearchResponse(apiResponseJson) {
-    return parseListResponse(apiResponseJson);
-}
-
-function parseMovieDetail(apiResponseJson) {
-    try {
-        var response = JSON.parse(apiResponseJson);
-        var data = response.data || response || {};
-        var movie = data.item || data.movie || response.movie || {};
-        var episodes = data.episodes || response.episodes || [];
-        var cdnDomain = data.APP_DOMAIN_CDN_IMAGE || response.pathImage || "https://vsmov.com/uploads/movies/";
-
-        var servers = [];
-        if (Array.isArray(episodes)) {
-            episodes.forEach(function (server) {
-                var serverEpisodes = [];
-                if (server.server_data && Array.isArray(server.server_data)) {
-                    server.server_data.forEach(function (ep) {
-                        if (ep.link_m3u8 || ep.link_embed) {
-                            serverEpisodes.push({
-                                id: ep.link_m3u8 || ep.link_embed,
-                                name: ep.name,
-                                slug: ep.slug
-                            });
-                        }
-                    });
-                }
-                if (serverEpisodes.length > 0) {
-                    servers.push({ name: server.server_name, episodes: serverEpisodes });
-                }
             });
         }
 
-        var categories = Array.isArray(movie.category) ? movie.category.map(function (c) { return c.name; }).join(", ") : "";
-        var countries = Array.isArray(movie.country) ? movie.country.map(function (c) { return c.name; }).join(", ") : "";
-        var directors = Array.isArray(movie.director) ? movie.director.join(", ") : "";
-        var actors = Array.isArray(movie.actor) ? movie.actor.join(", ") : "";
-
-        var ratingValue = 0, tmdbId = "", tmdbSeason = 0, tmdbType = "";
-        if (movie.tmdb) {
-            ratingValue = movie.tmdb.vote_average || 0;
-            tmdbId = movie.tmdb.id || "";
-            tmdbSeason = parseInt(movie.tmdb.season, 10) || 0;
-            tmdbType = movie.tmdb.type || "";
+        // Đảm bảo không lỗi phân trang
+        if (movies.length === 0) {
+            movies.push({
+                id: "empty", title: "Không tìm thấy phim", posterUrl: "", backdropUrl: "", year: 0, quality: "", episode_current: "", lang: ""
+            });
         }
 
         return JSON.stringify({
-            id: movie.slug,
-            title: movie.name || "",
-            originName: movie.origin_name || "",
-            posterUrl: getPosterUrl(movie.poster_url, cdnDomain),
-            backdropUrl: getPosterUrl(movie.thumb_url, cdnDomain),
-            description: (movie.content || "").replace(/<[^>]*>/g, ""),
-            year: movie.year || 0,
-            rating: ratingValue,
-            quality: movie.quality || "",
-            duration: movie.time || "",
-            servers: servers,
-            episode_current: movie.episode_current || "",
-            lang: movie.lang || "",
-            category: categories,
-            country: countries,
-            director: directors,
-            casts: actors,
-            status: movie.status || "",
-            tmdbId: String(tmdbId),
-            tmdbSeason: tmdbSeason,
-            tmdbType: tmdbType
+            items: movies,
+            pagination: { currentPage: 1, totalPages: 100, totalItems: 1000, itemsPerPage: 24 }
         });
-    } catch (error) { return "null"; }
+    } catch (error) {
+        // NẾU LỖI CÚ PHÁP (JSON PARSE FAILED)
+        return JSON.stringify({
+            items: [{
+                id: "error2", title: "❌ Lỗi đọc dữ liệu từ máy chủ", posterUrl: "", backdropUrl: "", year: 0, quality: "", episode_current: "", lang: ""
+            }],
+            pagination: { currentPage: 1, totalPages: 1, totalItems: 1, itemsPerPage: 1 }
+        });
+    }
 }
 
-function parseDetailResponse(apiResponseJson) {
-    return JSON.stringify({
-        url: "",
-        headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://vsmov.com" },
-        subtitles: []
-    });
-}
+function parseSearchResponse(apiResponseJson) { return parseListResponse(apiResponseJson); }
 
-function parseCategoriesResponse(apiResponseJson) {
-    try {
-        var response = JSON.parse(apiResponseJson);
-        var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, slug: i.slug }; }));
-    } catch (e) { return "[]"; }
-}
-
-function parseCountriesResponse(apiResponseJson) {
-    try {
-        var response = JSON.parse(apiResponseJson);
-        var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.slug }; }));
-    } catch (e) { return "[]"; }
-}
-
-function parseYearsResponse(apiResponseJson) {
-    try {
-        var response = JSON.parse(apiResponseJson);
-        var items = (response.data && response.data.items) ? response.data.items : (response.items || (Array.isArray(response) ? response : []));
-        if (!Array.isArray(items)) return "[]";
-        return JSON.stringify(items.map(function (i) { return { name: i.name, value: i.name || i.slug }; }));
-    } catch (e) { return "[]"; }
-}
+function parseMovieDetail(apiResponseJson) { return "null"; }
+function parseDetailResponse(apiResponseJson) { return "{}"; }
+function parseCategoriesResponse(apiResponseJson) { return "[]"; }
+function parseCountriesResponse(apiResponseJson) { return "[]"; }
+function parseYearsResponse(apiResponseJson) { return "[]"; }
 
 function getPosterUrl(path, cdnDomain) {
     if (!path) return "";
     if (path.indexOf("http") === 0) return path;
     var baseCdn = cdnDomain;
-    if (baseCdn.slice(-1) === '/' && path.charAt(0) === '/') {
-        return baseCdn + path.substring(1);
-    } else if (baseCdn.slice(-1) !== '/' && path.charAt(0) !== '/') {
-        return baseCdn + '/' + path;
-    }
+    if (baseCdn.slice(-1) === '/' && path.charAt(0) === '/') return baseCdn + path.substring(1);
+    if (baseCdn.slice(-1) !== '/' && path.charAt(0) !== '/') return baseCdn + '/' + path;
     return baseCdn + path;
 }
