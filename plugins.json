@@ -122,7 +122,7 @@
             "version": "1.26",
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/nguoncnew_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png"
-        },
+        }
 
         ]
 }
