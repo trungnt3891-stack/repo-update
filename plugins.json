@@ -116,6 +116,12 @@
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/phimhayok_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimhayok.jpg"
         },
-        
+{
+            "id": "yanhh3dios",
+            "name": "yanhh3dios",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/hh3dios_plugin.js",
+            "iconUrl": "https://hoathinh3d.co/wp-content/uploads/2023/09/favicon.png"
+        },
         ]
 }
