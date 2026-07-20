@@ -80,6 +80,42 @@
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Thethao_plugin.js",
             "iconUrl": "https://cdn.adminsosmap.site/wp-content/uploads/2025/05/Thiet-ke-chua-co-ten-34.png"
         },
-  
+   {
+            "id": "Bilutv",
+            "name": "Bilutv",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Bilutv_plugin.js",
+            "iconUrl": "https://bilutv.asia/img/bilutvlogo-ngang.jpg"
+        },
+{
+            "id": "Motchil",
+            "name": "Motchil",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Motchill_plugin.js",
+            "iconUrl": "https://motchille.cx/motchill.png"
+        },
+{
+            "id": "Onflix",
+            "name": "Onflix",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Onflix_plugin.js",
+            "iconUrl": "https://onflix.lat/app/asset/logo.png"
+        },
+{
+            "id": "yanhh3d-1",
+            "name": "yanhh3d-1",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Yanhh3d_plugin.js",
+            "iconUrl": "https://rapidapi.com/rapid-assets/user-settings/10858080/f0129b1a-7bd7-4aaa-8c6a-8ee8e834ad30logo_yanhh3d.png"
+        },
+        
+{
+            "id": "phimhayok",
+            "name": "phimhayok",
+            "version": "1.0.3",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/phimhayok_plugin.js",
+            "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimhayok.jpg"
+        },
+        
         ]
 }
