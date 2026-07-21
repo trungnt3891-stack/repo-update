@@ -2,7 +2,8 @@
 // CONFIGURATION & METADATA
 // =============================================================================
 
-var BASEURL = "https://animevietsub.love";
+// Đã cập nhật domain đích theo ảnh để bỏ qua trang trung gian của Bitly
+var BASEURL = "https://animevietsub.xyz";
 
 function getManifest() {
     return JSON.stringify({
