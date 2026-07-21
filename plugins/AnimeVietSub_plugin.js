@@ -2,7 +2,6 @@
 // CONFIGURATION & METADATA
 // =============================================================================
 
-// Tên miền gốc đã được cập nhật
 var BASEURL = "https://animevietsub.xyz";
 
 function getManifest() {
@@ -306,17 +305,14 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // Đánh lừa server AnimeVietSub rằng trình duyệt là một thẻ iframe
-            var bypassJs = "try{Object.defineProperty(window, 'top', { value: window.parent || {} });}catch(e){}";
-            
-            // Nếu link có đuôi m3u8 hoặc mp4 thì mở trực tiếp (isEmbed = false), ngược lại là nhúng web (isEmbed = true)
+            var bypassJs = "try{var fakeTop = {location: {href: '" + BASEURL + "'}}; Object.defineProperty(window, 'top', {value: fakeTop}); Object.defineProperty(window, 'parent', {value: fakeTop});}catch(e){}";
             var isM3u8 = link.indexOf('.m3u8') > -1 || link.indexOf('.mp4') > -1;
 
             return JSON.stringify({
                 url: link,
                 isEmbed: !isM3u8, 
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Referer": pageUrl || BASEURL + "/",
                     "Custom-Js": bypassJs 
                 },
@@ -331,34 +327,29 @@ function parseDetailResponse(htmlContent, pageUrl) {
 
 function parseEmbedResponse(htmlContent, url) {
     try {
-        // Cố gắng tìm stream video m3u8
         var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
         if (m3u8Match) {
             return JSON.stringify({
                 url: m3u8Match[1],
-                isEmbed: false, // Tìm được video gốc -> phát luôn
+                isEmbed: false,
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Referer": BASEURL + "/"
                 },
                 subtitles: []
             });
         }
 
-        // Nếu không tìm được, bắt app mở WebView chặn avs-shield và giả mạo window.top để bắt link ngầm
         var nextUrlMatch = url.match(/nextUrl=([^&]+)/);
         var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : BASEURL + "/";
-        
-        // Đánh lừa webplayer
-        var bypassJs = "try{Object.defineProperty(window, 'top', { value: window.parent || {} });}catch(e){}";
+        var bypassJs = "try{var fakeTop = {location: {href: '" + BASEURL + "'}}; Object.defineProperty(window, 'top', {value: fakeTop}); Object.defineProperty(window, 'parent', {value: fakeTop});}catch(e){}";
 
         return JSON.stringify({
             url: url,
             isEmbed: true, 
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Referer": referer,
-                "Block-Scripts": "avs-shield", // Có thể bỏ nếu muốn
                 "Custom-Js": bypassJs
             },
             subtitles: []
