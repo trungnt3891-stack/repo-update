@@ -2,14 +2,14 @@
 // CONFIGURATION & METADATA
 // =============================================================================
 
-// Đã cập nhật domain đích theo ảnh để bỏ qua trang trung gian của Bitly
+// Tên miền gốc đã được cập nhật
 var BASEURL = "https://animevietsub.xyz";
 
 function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.8",
+        "version": "1.0.9",
         "baseUrl": BASEURL,
         "iconUrl": BASEURL + "/statics/default/images/logo.png",
         "isEnabled": true,
@@ -74,17 +74,14 @@ function getUrlList(slug, filtersJson) {
             targetSlug = "the-loai/" + filters.category;
         }
 
-        // Clean slug
         if (targetSlug.startsWith("/")) targetSlug = targetSlug.substring(1);
         if (targetSlug.endsWith("/")) targetSlug = targetSlug.substring(0, targetSlug.length - 1);
 
-        // Handle Trang chủ (phim mới cập nhật)
         if (targetSlug === 'anime-moi-cap-nhat' || targetSlug === '') {
             if (page === 1) return BASEURL + "/";
             return BASEURL + "/anime-moi-cap-nhat/trang-" + page + ".html";
         }
 
-        // Handle path format
         if (page === 1) {
             return BASEURL + "/" + targetSlug + "/";
         } else {
@@ -132,7 +129,6 @@ function parseListResponse(htmlContent, $url) {
         var items = [];
         var seen = {};
 
-        // Parse danh sách phim dùng thư viện _$
         _$(htmlContent).find("article.TPost, .MovieList li, div.TPost").each(function () {
             var href = this.find("a").attr("href");
             if (!href) return;
@@ -157,7 +153,7 @@ function parseListResponse(htmlContent, $url) {
             } else {
                 slug = href.substring(href.lastIndexOf('/') + 1) || href;
             }
-            slug = slug.replace(/\/$/, ''); // clean trailing slash
+            slug = slug.replace(/\/$/, ''); 
 
             if (slug && !seen[slug]) {
                 seen[slug] = true;
@@ -174,7 +170,6 @@ function parseListResponse(htmlContent, $url) {
             }
         });
 
-        // Parse phân trang
         var totalPages = 1;
         var lastPageHref = _$(htmlContent).find("a:content('Trang Cuối')").attr("href");
         if (lastPageHref) {
@@ -199,7 +194,6 @@ function parseListResponse(htmlContent, $url) {
             }
         });
     } catch (e) {
-        log("parseListResponse error: " + e.message);
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
 }
@@ -211,9 +205,7 @@ function parseSearchResponse(htmlContent) {
 function parseMovieDetail(htmlContent, url) {
     try {
         var $doc = _$(htmlContent);
-        
         var id = $doc.find("link[rel='canonical']").attr("href") || $doc.find("meta[property='og:url']").attr("content");
-        
         var title = $doc.find("h1[itemprop='name']").text() || $doc.find("h1.title").text();
         var description = $doc.find(".Description, #film-info-desc").text();
         var posterUrl = $doc.find("img.poster, .attachment-img-mov-md").attr("src") || $doc.find("img.poster").attr("data-src");
@@ -231,7 +223,6 @@ function parseMovieDetail(htmlContent, url) {
             if (epMatch) episode_current = epMatch[1];
         }
 
-        // Parse list episodes
         var episodes = [];
         var seenEp = {};
         $doc.find("a[href*='/tap-']").each(function() {
@@ -244,15 +235,10 @@ function parseMovieDetail(htmlContent, url) {
             
             if (epUrl && !seenEp[epUrl]) {
                 seenEp[epUrl] = true;
-                episodes.push({
-                    id: epUrl,
-                    name: epName,
-                    slug: epUrl
-                });
+                episodes.push({ id: epUrl, name: epName, slug: epUrl });
             }
         });
 
-        // Sắp xếp tập
         episodes.sort(function(a, b) {
             var epA = parseInt(a.name) || 0;
             var epB = parseInt(b.name) || 0;
@@ -267,7 +253,6 @@ function parseMovieDetail(htmlContent, url) {
             });
         }
 
-        // Tạo id/slug
         var slug = "";
         if (id) {
             var slugMatch = /\/phim\/([^/]+)/.exec(id);
@@ -278,7 +263,6 @@ function parseMovieDetail(htmlContent, url) {
             slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
-        // Tạo Extra URL xử lý anti frame trang xem phim
         var extra = "";
         var isPlayPage = (id && id.indexOf("xem-phim") > -1) || htmlContent.indexOf("window.PLAYER_DATA") > -1;
         if (!isPlayPage && slug && slug !== "error") {
@@ -302,7 +286,6 @@ function parseMovieDetail(htmlContent, url) {
             extra: extra
         });
     } catch (e) {
-        log("parseMovieDetail error: " + e.message);
         return JSON.stringify({ id: "error", title: "", servers: [] });
     }
 }
@@ -310,14 +293,12 @@ function parseMovieDetail(htmlContent, url) {
 function parseDetailResponse(htmlContent, pageUrl) {
     try {
         var link = "";
-        // JS Object regex parsing là tốt nhất cho các đoạn json nhúng trong thẻ script
         var match = /window\.PLAYER_DATA\s*=\s*(\{.*?\});/s.exec(htmlContent);
         if (match) {
             var data = JSON.parse(match[1]);
             if (data && data.link) link = data.link;
         }
         
-        // Fallback dùng _$_ check iframe
         if (!link) {
             link = _$(htmlContent).find("iframe").attr("src");
         }
@@ -325,57 +306,64 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // Bypass anti-frame
-            var bypassJs = "try{Object.defineProperty(window,'top',{get:function(){return window.self}});}catch(e){}";
+            // Đánh lừa server AnimeVietSub rằng trình duyệt là một thẻ iframe
+            var bypassJs = "try{Object.defineProperty(window, 'top', { value: window.parent || {} });}catch(e){}";
             
+            // Nếu link có đuôi m3u8 hoặc mp4 thì mở trực tiếp (isEmbed = false), ngược lại là nhúng web (isEmbed = true)
+            var isM3u8 = link.indexOf('.m3u8') > -1 || link.indexOf('.mp4') > -1;
+
             return JSON.stringify({
                 url: link,
-                isEmbed: false,
+                isEmbed: !isM3u8, 
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Referer": pageUrl || BASEURL + "/",
-                    "Custom-Js": bypassJs
+                    "Custom-Js": bypassJs 
                 },
                 subtitles: []
             });
         }
         return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     } catch (e) {
-        log("parseDetailResponse error: " + e.message);
         return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     }
 }
 
 function parseEmbedResponse(htmlContent, url) {
     try {
+        // Cố gắng tìm stream video m3u8
         var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
         if (m3u8Match) {
             return JSON.stringify({
                 url: m3u8Match[1],
-                isEmbed: false,
+                isEmbed: false, // Tìm được video gốc -> phát luôn
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Referer": BASEURL + "/"
                 },
                 subtitles: []
             });
         }
 
+        // Nếu không tìm được, bắt app mở WebView chặn avs-shield và giả mạo window.top để bắt link ngầm
         var nextUrlMatch = url.match(/nextUrl=([^&]+)/);
         var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : BASEURL + "/";
+        
+        // Đánh lừa webplayer
+        var bypassJs = "try{Object.defineProperty(window, 'top', { value: window.parent || {} });}catch(e){}";
 
         return JSON.stringify({
             url: url,
-            isEmbed: false,
+            isEmbed: true, 
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "Referer": referer,
-                "Block-Scripts": "avs-shield"
+                "Block-Scripts": "avs-shield", // Có thể bỏ nếu muốn
+                "Custom-Js": bypassJs
             },
             subtitles: []
         });
     } catch (e) {
-        log("parseEmbedResponse error: " + e.message);
         return JSON.stringify({ url: url, isEmbed: true, headers: {}, subtitles: [] });
     }
 }
@@ -405,11 +393,9 @@ function parseCategoriesResponse(htmlContent) {
         
         return JSON.stringify(categories);
     } catch (e) {
-        log("parseCategoriesResponse error: " + e.message);
         return "[]";
     }
 }
-
 
 // =============================================================================
 // HELPER CỦA YANHH3D (_$ PARSER HTML)
