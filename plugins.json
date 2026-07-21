@@ -130,6 +130,13 @@
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/AnimeVietSub_plugin.js",
             "iconUrl": "https://animevietsub.love/statics/default/images/logo.png"
         }
+        {
+            "id": "shortflix",
+            "name": "Phim Ngắn Hay",
+            "version": "1.1.2",
+            "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/0c6ddf44dc90420a19beb48484147163e80fd2cc/Plugins/shortflix_plugin.js",
+            "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/shortflix.png"
+        }
 
     ]
 }
