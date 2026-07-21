@@ -122,6 +122,13 @@
             "version": "1.26",
             "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/nguoncnew_plugin.js",
             "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png"
+        },
+        {
+            "id": "AnimeVS",
+            "name": "AnimeVietsub",
+            "version": "1.26",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/AnimeVietSub_plugin.js",
+            "iconUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRQUSwRE4jKiBpDJHRXQ4oC2tMxqVNtERHFaXzs0uuYA&s=10"
         }
 
         ]
