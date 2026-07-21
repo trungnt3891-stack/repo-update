@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "nguoncnew",
         "name": "Phim NguonC Xoá Quảng Cáo",
-        "version": "1.26",
+        "version": "1.29",
         "baseUrl": "https://phim.nguonc.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png",
         "isEnabled": true,
@@ -317,6 +317,8 @@ var customcss = 'body { background: black; overflow: hidden; }body * {background
 style.innerHTML = customcss;
 //document.head.appendChild(style);
 /* BUILD VIDEO BEGIN*/
+// "version": "1.8"
+
 function runVideo(){
     'use strict';
     var DEVELOPE = false;
@@ -347,7 +349,7 @@ function runVideo(){
         buildVideoWithOriginal(originalVideo, stream1, stream2, playlist);
     }
 
-    // ─── QUÉT NGUỒN PHÁT VÀ PLAYLIST (GIỮ NGUYÊN CODE) ───
+    // ─── QUÉT NGUỒN PHÁT VÀ PLAYLIST ───
     function scanSources() {
         var activeSrc = '';
         var servers = [];
@@ -478,20 +480,15 @@ function runVideo(){
         }, duration);
     };
 
-    // ─── HÀM GIỮ LẠI THẺ VIDEO GỐC ĐỂ CHỐNG ĐEN MÀN HÌNH ───
-    // ─── ĐOẠN CODE ĐÃ ĐƯỢC CHỈNH SỬA ───
+    // ─── HÀM KHỞI DỰNG PLAYER CUSTOM ĐÈ LÊN GIAO DIỆN GỐC ───
     function buildVideoWithOriginal(video, stream1, stream2, playlistData) {
         video.id = 'main-video';
-        
-        // Đã thay object-fit: contain thành cover (hoặc fill tùy bạn) và thêm outline:none
-        video.style.cssText = 'width:100%;height:100%;object-fit:cover;cursor:pointer;background:#000;outline:none;border:none;box-shadow:none;';
+        video.style.cssText = 'width:100%;height:100%;object-fit:contain;cursor:pointer;background:#000;outline:none;border:none;box-shadow:none;transition: all 0.2s ease;';
         video.controls = false;
         
         var container = document.createElement('div');
         container.id = 'custom-video-player';
-        
-        // Thêm outline:none và box-shadow:none cho container để triệt tiêu hoàn toàn viền vàng
-        container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999999;font-family:Segoe UI,Roboto,sans-serif;user-select:none;-webkit-user-select:none;outline:none;border:none;box-shadow:none;';
+        container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999999;font-family:Segoe UI,Roboto,sans-serif;user-select:none;-webkit-user-select:none;outline:none;border:none;box-shadow:none;overflow:hidden;';
 
         var spinner = document.createElement('div');
         spinner.id = 'video-spinner';
@@ -529,7 +526,8 @@ function runVideo(){
         var speedIndicator = document.createElement('span');
         speedIndicator.style.cssText = 'color:#fff;font-size:12px;opacity:0.8;';
         speedIndicator.textContent = '1.0x';
-        var btnFullscreen = createBtn('⛶', 'Toàn màn hình');
+        
+        var btnFullscreen = createBtn('⛶', 'Kích thước trình phát: Co giãn (Mặc định)');
         var btnPlaylist = createBtn('☰', 'Danh sách phát / Server');
 
         btnRow.appendChild(btnPlay);
@@ -615,7 +613,7 @@ function runVideo(){
             }
         }
 
-        // CHÌA KHÓA: "Bốc" thẻ video cũ bỏ vào Container mới mà KHÔNG LÀM MẤT STREAM
+        // Đóng gói các thành phần giao diện Player mới
         container.appendChild(video);
         container.appendChild(spinner);
         container.appendChild(bigPlayBtn);
@@ -623,14 +621,41 @@ function runVideo(){
         container.appendChild(controls);
         container.appendChild(playlistPanel);
 
-        // Clear toàn bộ HTML cũ của trang web phim để xóa sạch khung quảng cáo rác
-        var htmlTAG = document.getElementsByTagName("html")[0];
-        htmlTAG.innerHTML = '';
-        document.body = document.createElement('body');
-        document.body.appendChild(container);
-        document.head.innerHTML = '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">';
+        // ─── CHỈNH SỬA: CƠ CHẾ KHÓA VÀ BẢO VỆ BỘ TOOL KHI CLEAR ADS ───
+        var idsToKeep = [
+            'custom-video-player', // Luôn giữ lại trình phát custom
+            'lab-quick-hide-menu', 'labCssExtractMenu', 'labCssExtractList', 
+            '__labTopLayerContainer', 'labMainDashboard', 'lab-fab-wrapper', 
+            'interactive-dashboard-styles-v15-0', 'lab-sandbox-internal-css', 
+            'lab-token-pointer-style', 'lab-v16-pro-max-styles', 
+            'lab-v163-isolation-style', 'lab-html-source-viewer-styles'
+        ];
+
+        // Quét dọn sạch sẽ thẻ HEAD, chỉ giữ lại các tag cấu trúc của Tool
+        var headChildren = Array.from(document.head.children);
+        headChildren.forEach(function(child) {
+            if (!child.id || idsToKeep.indexOf(child.id) === -1) {
+                child.remove();
+            }
+        });
+        
+        // Tái tạo cấu hình metadata thiết yếu cho Head
+        var metaCharset = document.createElement('meta'); metaCharset.setAttribute('charset', 'UTF-8'); document.head.appendChild(metaCharset);
+        var metaView = document.createElement('meta'); metaView.name = 'viewport'; metaView.content = 'width=device-width, initial-scale=1.0'; document.head.appendChild(metaView);
         document.head.appendChild(spinStyle);
+
+        // Quét dọn sạch sẽ thẻ BODY, giữ lại bộ Dashboard, Menu và đẩy Player vào
+        var bodyChildren = Array.from(document.body.children);
+        bodyChildren.forEach(function(child) {
+            if (!child.id || idsToKeep.indexOf(child.id) === -1) {
+                child.remove();
+            }
+        });
+        
+        // Đẩy trình phát custom vào body sạch quảng cáo
+        document.body.appendChild(container);
         document.title = 'Dẹp hết quảng cáo rồi nha bạn.';
+        // ─────────────────────────────────────────────────────────────
 
         var isPlaying = false;
         var isMuted = false;
@@ -638,7 +663,10 @@ function runVideo(){
         var controlsTimeout = null;
         var isDraggingProgress = false;
         var isDraggingVideo = false;
+        var isHoveringControls = false;
         var lastSaveTime = 0;
+        
+        var currentResizeMode = 0; // 0: Co giãn, 1: Fill, 2: Ngang, 3: Dọc
 
         function generateVideoKey() {
             if (!video || !video.duration || isNaN(video.duration)) return null;
@@ -726,7 +754,6 @@ function runVideo(){
             seekOverlay._timer = setTimeout(function() { seekOverlay.style.opacity = '0'; }, 800);
         }
 
-        // Sửa lỗi hiển thị giây/phút bị NaN thời gian đầu load video
         function formatTime(sec) {
             if (!sec || isNaN(sec)) return '0:00';
             var m = Math.floor(sec / 60);
@@ -796,22 +823,60 @@ function runVideo(){
             };
         }
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) container.requestFullscreen().catch(function() {});
-            else document.exitFullscreen().catch(function() {});
+        function changeVideoSize() {
+            video.style.removeProperty('width');
+            video.style.removeProperty('height');
+            video.style.removeProperty('object-fit');
+            
+            if (currentResizeMode === 0) {
+                video.style.cssText += 'width:100%;height:100%;object-fit:contain;';
+                btnFullscreen.textContent = '⛶';
+                btnFullscreen.title = 'Kích thước: Co giãn phù hợp thiết bị (Mặc định)';
+                showToast('📺 Chế độ: Co giãn vừa vặn thiết bị (Mặc định)');
+            } else if (currentResizeMode === 1) {
+                video.style.cssText += 'width:100%;height:100%;object-fit:fill;';
+                btnFullscreen.textContent = '🔲';
+                btnFullscreen.title = 'Kích thước: Tràn viền toàn màn hình';
+                showToast('📺 Chế độ: Điền đầy toàn màn hình');
+            } else if (currentResizeMode === 2) {
+                video.style.cssText += 'width:100vw;height:auto;object-fit:contain;';
+                btnFullscreen.textContent = '↔';
+                btnFullscreen.title = 'Kích thước: Khớp chuẩn chiều ngang';
+                showToast('📺 Chế độ: Cắt gọt theo chiều ngang');
+            } else if (currentResizeMode === 3) {
+                video.style.cssText += 'width:auto;height:100vh;object-fit:contain;';
+                btnFullscreen.textContent = '↕';
+                btnFullscreen.title = 'Kích thước: Khớp chuẩn chiều dọc';
+                showToast('📺 Chế độ: Cắt gọt theo chiều dọc');
+            }
         }
 
         function showControls() {
             controls.style.opacity = '1';
             clearTimeout(controlsTimeout);
-            controlsTimeout = setTimeout(function() { if (!isDraggingProgress) controls.style.opacity = '0'; }, 3000);
+            controlsTimeout = setTimeout(function() { 
+                if (!isDraggingProgress && !isHoveringControls) {
+                    controls.style.opacity = '0'; 
+                }
+            }, 3000);
         }
+
+        controls.onmouseenter = function() {
+            isHoveringControls = true;
+            controls.style.opacity = '1';
+            clearTimeout(controlsTimeout);
+        };
+        controls.onmouseleave = function() {
+            isHoveringControls = false;
+            showControls();
+        };
 
         video.addEventListener('loadeddata', function() {
             spinner.style.display = 'none';
             updateProgress();
             if (isMuted && video.muted) { video.muted = false; isMuted = false; btnMute.textContent = '🔊'; }
             restorePosition();
+            changeVideoSize();
         });
         video.addEventListener('loadedmetadata', function() { restorePosition(); });
         video.addEventListener('waiting', function() { spinner.style.display = 'block'; });
@@ -820,22 +885,51 @@ function runVideo(){
         video.addEventListener('timeupdate', function() { updateProgress(); savePosition(); });
         video.addEventListener('ended', function() { btnPlay.textContent = '▶'; bigPlayBtn.style.display = 'flex'; isPlaying = false; clearSavedPosition(); });
         
+        var lastClickTime = 0;
+        var clickTimer = null;
+        
         video.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (isDraggingVideo) { isDraggingVideo = false; return; }
-            var rect = video.getBoundingClientRect();
-            var x = e.clientX - rect.left;
-            var width = rect.width;
-            if (x < width * 0.3) seekVideo(-10);
-            else if (x > width * 0.7) seekVideo(10);
-            else togglePlay();
-        });
+			    e.stopPropagation();
+                showControls();
+			    if (isDraggingVideo) { isDraggingVideo = false; return; }
+			    
+                var currentTime = Date.now();
+                var clickDelay = currentTime - lastClickTime;
+			    var width = window.innerWidth;
+			    var x = e.clientX;
+			    
+                if (clickDelay < 300) {
+                    clearTimeout(clickTimer);
+                    if (x < width * 0.3) {
+                        seekVideo(-10);
+                    } else if (x > width * 0.7) {
+                        seekVideo(10);
+                    } else {
+                        togglePlay();
+                    }
+                } else {
+                    clickTimer = setTimeout(function() {
+                        togglePlay();
+                    }, 250);
+                }
+                lastClickTime = currentTime;
+			});
+
+        video.addEventListener('mousemove', showControls);
+        container.addEventListener('mousemove', showControls);
+        container.addEventListener('click', showControls);
 
         video.addEventListener('volumechange', function() { btnMute.textContent = video.muted || video.volume === 0 ? '🔇' : '🔊'; });
         btnPlay.addEventListener('click', function(e) { e.stopPropagation(); togglePlay(); });
         btnMute.addEventListener('click', function(e) { e.stopPropagation(); toggleMute(); });
         btnReload.addEventListener('click', function(e) { e.stopPropagation(); reloadVideo(); });
-        btnFullscreen.addEventListener('click', function(e) { e.stopPropagation(); toggleFullscreen(); });
+        
+        btnFullscreen.addEventListener('click', function(e) { 
+            e.stopPropagation(); 
+            currentResizeMode = (currentResizeMode + 1) % 4;
+            changeVideoSize();
+        });
+        
         btnPlaylist.addEventListener('click', function(e) { e.stopPropagation(); playlistPanel.style.transform = 'translateX(0)'; });
         
         progressWrap.addEventListener('click', function(e) {
@@ -856,11 +950,9 @@ function runVideo(){
             }
         });
         document.addEventListener('mouseup', function() { isDraggingProgress = false; });
-        container.addEventListener('mousemove', showControls);
-        container.addEventListener('click', showControls);
         bigPlayBtn.addEventListener('click', function(e) { e.stopPropagation(); togglePlay(); });
 
-        // LẮP BỘ PHÍM TẮT ĐIỀU KHIỂN XỊN
+        // BỘ PHÍM TẮT ĐIỀU KHIỂN
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             showControls();
@@ -871,7 +963,11 @@ function runVideo(){
                 case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); showToast('Âm lượng: ' + Math.round(video.volume * 100) + '%'); break;
                 case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); showToast('Âm lượng: ' + Math.round(video.volume * 100) + '%'); break;
                 case 'm': case 'M': e.preventDefault(); toggleMute(); break;
-                case 'f': case 'F': e.preventDefault(); toggleFullscreen(); break;
+                case 'f': case 'F': 
+                    e.preventDefault(); 
+                    currentResizeMode = (currentResizeMode + 1) % 4;
+                    changeVideoSize();
+                    break;
                 case 'r': case 'R': e.preventDefault(); reloadVideo(); break;
                 case 'Home': e.preventDefault(); video.currentTime = 0; showToast('Về đầu video'); break;
                 case 'End': e.preventDefault(); if (video.duration && !isNaN(video.duration)) video.currentTime = video.duration - 1; break;
@@ -882,7 +978,7 @@ function runVideo(){
             }
         });
 
-        // BỘ CẢM ỨNG ĐIỀU HƯỚNG SẠCH QUẢNG CÁO VUỐT CHẠY
+        // BỘ CẢM ỨNG ĐIỀU HƯỚNG VUỐT VUỐT
         var touchStartX = 0, touchStartY = 0, isSwiping = false;
         container.addEventListener('touchstart', function(e) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; isSwiping = false; }, { passive: true });
         container.addEventListener('touchmove', function(e) {
@@ -936,7 +1032,6 @@ function runVideo(){
             regionOverlay = null;
         });
 
-        // BẮT ĐẦU PHÁT TRÊN THẺ GỐC (GIỮ NGUYÊN TRẠNG THÁI LUỒNG BLOB)
         if (video.paused) {
             video.play().then(function() {
                 isPlaying = true; btnPlay.textContent = '⏸';
@@ -955,7 +1050,6 @@ function runVideo(){
         renderPlaylist();
         showControls();
 
-        // PHƠI BÀY API LÀM VIỆC (GIỮ NGUYÊN)
         window.VideoPlayerAPI = {
             addServer: function(item) { if (!item || !item.src) return; playlistState.servers.push(item); renderPlaylist(); },
             addServerAt: function(index, item) { if (!item || !item.src) return; playlistState.servers.splice(index, 0, item); renderPlaylist(); },
@@ -978,84 +1072,58 @@ function runVideo(){
         GetlinkVideo();
     }
 }
-
-function initCustomVideoFix() {
-    // SỬA: Lấy động giá trị từ tham số $url truyền vào hàm textJS bên ngoài
-    if (SCRIPTURL && SCRIPTURL !== "undefined") {
-// Thay thế đoạn checkAndClick cũ ở cuối script bằng logic này:
-       // Thay thế đoạn initVideoFlow cũ ở cuối script bằng logic tối ưu này:
-        (function initVideoFlow() {
-            // Bước 1: Kiểm tra nhanh lần đầu tiên xem có video luôn không
-            if (document.querySelector('video')) {
-                console.log("🎯 Tìm thấy thẻ video ngay lập tức. Khởi chạy luôn!");
-                runVideo();
-                return;
-            }
-            
-            // Bước 2: Nếu chưa có, bắt đầu vòng lặp quét SONG SONG cả video lẫn nút bấm mỗi 1 giây
-            console.log("⏳ Chưa thấy video. Bắt đầu quét tìm video hoặc nút resumeBtn mỗi 1 giây...");
-            let secondsPassed = 0;
-            const maxSeconds = 20;
-            
-            const checkInterval = setInterval(function() {
-                secondsPassed++;
-                
-                // Truy vấn cả 2 phần tử ở mỗi chu kỳ quét
-                const videoElement = document.querySelector('video');
-                const skipButton = document.getElementById("resumeBtn");
-                
-                // ĐIỀU KIỆN 1: Nếu tự nhiên tìm thấy thẻ video xuất hiện
-                if (videoElement) {
-                    clearInterval(checkInterval); // Xóa lặp ngay lập tức để tránh lỗi click ngầm về sau
-                    console.log("✓ Tìm thấy thẻ video xuất hiện trong vòng lặp! Khởi chạy ngay.");
-                    runVideo();
-                    return;
-                }
-                
-                // ĐIỀU KIỆN 2: Nếu tìm thấy nút resumeBtn trước
-                if (skipButton) {
-                    // Kiểm tra ẩn/hiển thị bằng CSS thực tế
-                    const style = window.getComputedStyle(skipButton);
-                    if (style.display !== 'none' && style.visibility !== 'hidden') {
-                        
-                        clearInterval(checkInterval); // Xóa lặp ngay lập tức để an toàn cho DOM mới
-                        console.log("🎯 Đã tìm thấy nút resumeBtn hiển thị! Click và đợi 2s...");
-                        
-                        skipButton.click(); // Click vào nút
-                        
-                        setTimeout(function() {
-                            runVideo(); // Chạy runVideo sau khi click 2 giây
-                        }, 2000);
-                        return;
-                    }
-                }
-                
-                // ĐIỀU KIỆN 3: Đã quét hết 20 giây mà cả video lẫn nút đều "bặt vô âm tín"
-                if (secondsPassed >= maxSeconds) {
-                    clearInterval(checkInterval); // Dừng vòng lặp hẳn
-                    console.log("⏱ Đã hết 20 giây quét mà không tìm thấy gì.");
-                    
-                    // Hiển thị Toast thông báo yêu cầu người dùng tương tác trong 20s
-                    showToast(
-                        "⚠️ Vui lòng nhấn vào màn hình hoặc nút Xem Tiếp để tiếp tục phát phim!",
-                        20000,
-                        true,
-                        false
-                    );
-                    
-                    // Ép chạy hàm runVideo() luôn sau đó để dựng giao diện player custom lên
-                    runVideo();
-                }
-            }, 1000); // Quét lại sau mỗi 1 giây (1000ms)
-        })();
-        injectScriptAfterLoad(SCRIPTURL);
-    }
+function checkResume() {
+	(function initVideoFlow() {
+		if (document.querySelector('video')) {
+			console.log("🎯 Tìm thấy thẻ video ngay lập tức. Khởi chạy luôn!");
+			runVideo();
+			return;
+		}
+		
+		console.log("⏳ Chưa thấy video. Bắt đầu quét tìm video hoặc nút resumeBtn mỗi 1 giây...");
+		let secondsPassed = 0;
+		const maxSeconds = 20;
+		const checkInterval = setInterval(function() {
+			secondsPassed++;
+			
+			const videoElement = document.querySelector('video');
+			const skipButton = document.getElementById("resumeBtn");
+			
+			if (videoElement) {
+				clearInterval(checkInterval);
+				console.log("✓ Tìm thấy thẻ video xuất hiện trong vòng lặp! Khởi chạy ngay.");
+				runVideo();
+				return;
+			}
+			
+			if (skipButton) {
+				const style = window.getComputedStyle(skipButton);
+				if (style.display !== 'none' && style.visibility !== 'hidden') {
+					clearInterval(checkInterval);
+					console.log("🎯 Đã tìm thấy nút resumeBtn hiển thị! Click và đợi 2s...");
+					skipButton.click();
+					setTimeout(function() {
+						runVideo();
+					}, 2000);
+					return;
+				}
+			}
+			
+			if (secondsPassed >= maxSeconds) {
+				clearInterval(checkInterval);
+				console.log("⏱ Đã hết 20 giây quét mà không tìm thấy gì.");
+				showToast("⚠️ Vui lòng nhấn vào màn hình hoặc nút Xem Tiếp để tiếp tục phát phim!", 20000, true, false);
+				runVideo();
+			}
+		}, 1000);
+	})();
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCustomVideoFix);
+    //document.addEventListener('DOMContentLoaded', initCustomVideoFix);
+    setTimeout(checkResume, 1000);
 } else {
-    initCustomVideoFix();
+    setTimeout(checkResume, 1000);
 }
 
 `;
