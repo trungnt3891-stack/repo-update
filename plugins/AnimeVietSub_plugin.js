@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.8",
+        "version": "1.0.9",
         "baseUrl": "https://animevietsub.wiki",
         "iconUrl": "https://animevietsub.wiki/statics/default/images/logo.png",
         "isEnabled": true,
@@ -48,7 +48,6 @@ function getFilterConfig() {
     });
 }
 
-// Helper log
 function log(msg) {
     if (typeof console !== 'undefined' && console.log) {
         console.log("[AnimeVsubPlugin] " + msg);
@@ -63,26 +62,22 @@ function getUrlList(slug, filtersJson) {
     try {
         var filters = JSON.parse(filtersJson || "{}");
         var page = filters.page || 1;
-        var sort = filters.sort || "latest";
-
+        
         var targetSlug = slug;
         if (filters.category) {
             targetSlug = "the-loai/" + filters.category;
         }
 
-        // Clean slug
         if (targetSlug.startsWith("/")) targetSlug = targetSlug.substring(1);
         if (targetSlug.endsWith("/")) targetSlug = targetSlug.substring(0, targetSlug.length - 1);
 
         var baseUrl = "https://animevietsub.wiki";
         
-        // Handle Trang chủ (phim mới cập nhật)
         if (targetSlug === 'anime-moi-cap-nhat' || targetSlug === '') {
             if (page === 1) return baseUrl + "/";
             return baseUrl + "/anime-moi-cap-nhat/trang-" + page + ".html";
         }
 
-        // Handle path format
         if (page === 1) {
             return baseUrl + "/" + targetSlug + "/";
         } else {
@@ -111,11 +106,9 @@ function getUrlSearch(keyword, filtersJson) {
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
-    // Clean slug
     var cleanSlug = slug;
     if (cleanSlug.startsWith("/")) cleanSlug = cleanSlug.substring(1);
     if (cleanSlug.startsWith("phim/")) cleanSlug = cleanSlug.substring(5);
-    
     return "https://animevietsub.wiki/phim/" + cleanSlug;
 }
 
@@ -134,9 +127,7 @@ function parseListResponse(htmlContent) {
 
         function extractMovie(cardHtml) {
             var linkMatch = /<a\s+[^>]*href="([^"]*\/phim\/[^"]+)"[^>]*(?:title="([^"]+)")?/i.exec(cardHtml);
-            if (!linkMatch) {
-                linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
-            }
+            if (!linkMatch) linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
             if (!linkMatch) return null;
 
             var href = linkMatch[1];
@@ -157,13 +148,11 @@ function parseListResponse(htmlContent) {
             var imgMatch = /<img[^>]*(?:src|data-src)="([^"]+)"/i.exec(cardHtml);
             var posterUrl = imgMatch ? imgMatch[1] : "";
 
-            var titleMatch = /<h2[^>]*class="Title"[^>]*>([\s\S]*?)<\/h2>/i.exec(cardHtml)
-                || /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
+            var titleMatch = /<h2[^>]*class="Title"[^>]*>([\s\S]*?)<\/h2>/i.exec(cardHtml) || /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
             var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : (linkMatch[2] || "");
 
             var year = 0;
-            var yearMatch = /<span class="Date[^"]*">\s*(\d{4})\s*<\/span>/i.exec(cardHtml)
-                || /\((\d{4})\)/.exec(title);
+            var yearMatch = /<span class="Date[^"]*">\s*(\d{4})\s*<\/span>/i.exec(cardHtml) || /\((\d{4})\)/.exec(title);
             if (yearMatch) year = parseInt(yearMatch[1]);
 
             return {
@@ -223,13 +212,9 @@ function parseListResponse(htmlContent) {
 
         return JSON.stringify({
             items: movies,
-            pagination: {
-                currentPage: currentPage,
-                totalPages: totalPages
-            }
+            pagination: { currentPage: currentPage, totalPages: totalPages }
         });
     } catch (e) {
-        log("parseListResponse error: " + e.message);
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
 }
@@ -255,21 +240,17 @@ function parseMovieDetail(htmlContent) {
         var genres = [];
         var genreBlockMatch = /<li>\s*<span class="info-title">Thể loại:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent) || /Thể loại:([\s\S]*?)(?:<br|<\/li>)/i.exec(htmlContent);
         if (genreBlockMatch) {
-            var genreMatch;
             var genrePattern = /<a[^>]*>([^<]+)<\/a>/gi;
-            while ((genreMatch = genrePattern.exec(genreBlockMatch[1])) !== null) {
-                genres.push(genreMatch[1].trim());
-            }
+            var genreMatch;
+            while ((genreMatch = genrePattern.exec(genreBlockMatch[1])) !== null) genres.push(genreMatch[1].trim());
         }
 
         var countries = [];
         var countryBlockMatch = /<li>\s*<span class="info-title">Quốc gia:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent);
         if (countryBlockMatch) {
-            var countryMatch;
             var countryPattern = /<a[^>]*>([^<]+)<\/a>/gi;
-            while ((countryMatch = countryPattern.exec(countryBlockMatch[1])) !== null) {
-                countries.push(countryMatch[1].trim());
-            }
+            var countryMatch;
+            while ((countryMatch = countryPattern.exec(countryBlockMatch[1])) !== null) countries.push(countryMatch[1].trim());
         }
 
         var year = 0;
@@ -285,31 +266,6 @@ function parseMovieDetail(htmlContent) {
             if (epMatch2) episode_current = epMatch2[1];
         }
 
-        // [FIXED]: Nhận diện chính xác URL tập phim, hỗ trợ cả phim Lẻ chỉ có xem-phim.html
-        var episodes = [];
-        var epPattern = /<a\s+[^>]*href="([^"]*(?:\/tap-[^"]+|\/xem-phim\.html))"[^>]*>([\s\S]*?)<\/a>/gi;
-        var epMatch;
-        while ((epMatch = epPattern.exec(htmlContent)) !== null) {
-            var epUrl = epMatch[1];
-            var epName = epMatch[2].replace(/<[^>]*>/g, "").trim();
-            if (!epName) epName = "Full"; // Fallback nếu thẻ a bị rỗng text
-            
-            if (epUrl.indexOf('http') !== 0) {
-                epUrl = "https://animevietsub.wiki" + (epUrl.startsWith('/') ? '' : '/') + epUrl;
-            }
-            
-            var isDuplicate = false;
-            for (var i = 0; i < episodes.length; i++) {
-                if (episodes[i].id === epUrl) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-            if (!isDuplicate) {
-                episodes.push({ id: epUrl, name: epName, slug: epUrl });
-            }
-        }
-
         var slug = "";
         if (id) {
             var slugMatch = /\/phim\/([^/]+)/.exec(id);
@@ -320,38 +276,62 @@ function parseMovieDetail(htmlContent) {
             slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
+        // --- CẢI TIẾN THUẬT TOÁN QUÉT TẬP PHIM (Chống sót) ---
+        var episodes = [];
+        var addedEps = {};
+        
+        // Cô lập vùng chứa danh sách tập để không quét nhầm link lung tung
+        var searchArea = htmlContent;
+        var sectionMatch = /class="[^"]*(?:list-episode|halim-list-eps|TPlayerNav)[^"]*"[\s\S]*?<\/(?:ul|div)>/i.exec(htmlContent);
+        if (sectionMatch) searchArea = sectionMatch[0];
+
+        var epPattern = /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        var epMatch;
+        while ((epMatch = epPattern.exec(searchArea)) !== null) {
+            var epUrl = epMatch[1].trim();
+            var rawName = epMatch[2].replace(/<[^>]*>/g, "").trim();
+            
+            // Loại bỏ các link không liên quan
+            if (epUrl.indexOf('javascript:') > -1 || epUrl === '#' || epUrl.toLowerCase().indexOf('download') > -1) continue;
+            
+            // Kiểm tra xem link có phải là tập phim của bộ này không
+            if (epUrl.indexOf(slug) > -1 || (epUrl.indexOf('tap-') > -1 && epUrl.endsWith('.html')) || epUrl.indexOf('xem-phim.html') > -1) {
+                // Chuẩn hóa url
+                if (epUrl.indexOf('http') !== 0) {
+                    if (epUrl.startsWith('/')) epUrl = "https://animevietsub.wiki" + epUrl;
+                    else epUrl = "https://animevietsub.wiki/phim/" + slug + "/" + epUrl;
+                }
+                
+                if (!addedEps[epUrl]) {
+                    var epName = rawName;
+                    // Thêm chữ "Tập" nếu name chỉ là số (1, 2, 3...)
+                    if (/^\d+(\.\d+)?$/.test(epName)) {
+                        epName = "Tập " + epName;
+                    } else if (!epName || epName.toLowerCase() === "play" || epName.toLowerCase() === "xem") {
+                        epName = "Full";
+                    }
+                    
+                    episodes.push({ id: epUrl, name: epName, slug: epUrl });
+                    addedEps[epUrl] = true;
+                }
+            }
+        }
+
+        // Giữ nguyên mảng episodes (KHÔNG DÙNG HÀM SORT), website xuất hiện thứ tự nào sẽ lên App đúng thứ tự đó.
+
         var isPlayPage = (id && id.indexOf("xem-phim") > -1) || htmlContent.indexOf("window.PLAYER_DATA") > -1;
         var extra = "";
         if (!isPlayPage && slug && slug !== "error") {
             extra = "https://animevietsub.wiki/phim/" + slug + "/xem-phim.html";
         }
 
-        // [FIXED]: Bổ sung giả lập nút nếu không bóc được list (trường hợp anime Lẻ 1 tập)
         if (episodes.length === 0) {
-            if (isPlayPage) {
-                episodes.push({ id: id, name: "Full", slug: id });
-            } else if (extra) {
-                episodes.push({ id: extra, name: "Full", slug: extra });
-            }
+            if (isPlayPage) episodes.push({ id: id, name: "Full", slug: id });
+            else if (extra) episodes.push({ id: extra, name: "Full", slug: extra });
         }
-
-        // [FIXED]: Sắp xếp mảng an toàn bằng Regex (Tránh lỗi `parseInt("Tập 1") = NaN`)
-        episodes.sort(function(a, b) {
-            var numA = a.name.match(/\d+/);
-            var numB = b.name.match(/\d+/);
-            var valA = numA ? parseInt(numA[0], 10) : 0;
-            var valB = numB ? parseInt(numB[0], 10) : 0;
-            
-            if (valA === valB) {
-                return a.name.localeCompare(b.name);
-            }
-            return valA - valB;
-        });
 
         var servers = [];
-        if (episodes.length > 0) {
-            servers.push({ name: "AnimeVsub", episodes: episodes });
-        }
+        if (episodes.length > 0) servers.push({ name: "AnimeVsub", episodes: episodes });
 
         return JSON.stringify({
             id: slug,
@@ -370,59 +350,44 @@ function parseMovieDetail(htmlContent) {
             extra: extra
         });
     } catch (e) {
-        log("parseMovieDetail error: " + e.message);
         return JSON.stringify({ id: "error", title: "", servers: [] });
     }
 }
 
 function parseDetailResponse(htmlContent, pageUrl) {
     try {
-        log("parseDetailResponse input pageUrl: " + pageUrl);
-        
         var link = "";
-        // Tìm window.PLAYER_DATA
         var match = /window\.PLAYER_DATA\s*=\s*(\{.*?\});/s.exec(htmlContent);
         if (match) {
             var data = JSON.parse(match[1]);
-            if (data && data.link) {
-                link = data.link;
-                log("Extracted player link from window.PLAYER_DATA: " + link);
-            }
+            if (data && data.link) link = data.link;
         }
         
-        // Fallback: Quét tất cả các iframe
         if (!link) {
             var iframeMatch = htmlContent.match(/<iframe[^>]*src="([^"]+)"/i);
-            if (iframeMatch) {
-                link = iframeMatch[1];
-                log("Fallback iframe link: " + link);
-            }
+            if (iframeMatch) link = iframeMatch[1];
         }
         
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // [FIXED]: Bắt buộc isEmbed là true nếu link là iframe (không phải m3u8/mp4) 
-            // để ExoPlayer không bị lỗi khi cố đọc file HTML.
-            var isDirect = (link.indexOf('.m3u8') !== -1 || link.indexOf('.mp4') !== -1);
-            
-            var bypassJs = "try{Object.defineProperty(window,'top',{get:function(){return window.self}});}catch(e){}";
+            // --- CẢI TIẾN CHỐNG FRAME KILLER ("video chỉ có thể phát trong frame") ---
+            // Định nghĩa lại window.top và window.parent thành null để JS chống leech bị lỗi / trả kết quả sai
+            var bypassJs = "try { Object.defineProperty(window, 'top', { get: function() { return null; } }); Object.defineProperty(window, 'parent', { get: function() { return null; } }); } catch(e) {}";
             
             return JSON.stringify({
                 url: link,
-                isEmbed: !isDirect,
+                isEmbed: true, // Ép dùng webview để giải mã frame
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": pageUrl || "https://animevietsub.wiki/",
+                    "Referer": "https://animevietsub.wiki/",
                     "Custom-Js": bypassJs
                 },
                 subtitles: []
             });
         }
-        
         return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     } catch (e) {
-        log("parseDetailResponse error: " + e.message);
         return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     }
 }
@@ -431,35 +396,31 @@ function parseEmbedResponse(htmlContent, url) {
     try {
         var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
         if (m3u8Match) {
-            log("Found m3u8 stream: " + m3u8Match[1]);
             return JSON.stringify({
                 url: m3u8Match[1],
                 isEmbed: false,
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": url
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Referer": "https://animevietsub.wiki/"
                 },
                 subtitles: []
             });
         }
 
-        // [FIXED]: Nếu không tìm thấy stream m3u8, phải trả về isEmbed: true
-        // để hệ thống mở link thông qua WebView, tránh gửi iframe lỗi vào ExoPlayer
-        var nextUrlMatch = url.match(/nextUrl=([^&]+)/);
-        var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : "https://animevietsub.wiki/";
-
+        var bypassJs = "try { Object.defineProperty(window, 'top', { get: function() { return null; } }); Object.defineProperty(window, 'parent', { get: function() { return null; } }); } catch(e) {}";
+        var refererUrl = "https://animevietsub.wiki/";
+        
         return JSON.stringify({
             url: url,
             isEmbed: true,
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Referer": referer,
-                "Block-Scripts": "avs-shield"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Referer": refererUrl,
+                "Custom-Js": bypassJs
             },
             subtitles: []
         });
     } catch (e) {
-        log("parseEmbedResponse error: " + e.message);
         return JSON.stringify({ url: url, isEmbed: true, headers: {}, subtitles: [] });
     }
 }
@@ -478,9 +439,7 @@ function parseCategoriesResponse(htmlContent) {
             while ((catMatch = catPattern.exec(menuBlock[1])) !== null) {
                 var catSlug = catMatch[1].replace(/\//g, "");
                 var catName = catMatch[2].trim();
-                if (catSlug && catName) {
-                    categories.push({ name: catName, slug: catSlug });
-                }
+                if (catSlug && catName) categories.push({ name: catName, slug: catSlug });
             }
         }
         
@@ -494,14 +453,11 @@ function parseCategoriesResponse(htmlContent) {
                 for (var i = 0; i < categories.length; i++) {
                     if (categories[i].slug === fbSlug) { exists = true; break; }
                 }
-                if (!exists && fbSlug && fbName) {
-                    categories.push({ name: fbName, slug: fbSlug });
-                }
+                if (!exists && fbSlug && fbName) categories.push({ name: fbName, slug: fbSlug });
             }
         }
         return JSON.stringify(categories);
     } catch (e) {
-        log("parseCategoriesResponse error: " + e.message);
         return "[]";
     }
 }
