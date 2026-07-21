@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.1.0",
+        "version": "1.1.2",
         "baseUrl": "https://animevietsub.wiki",
         "iconUrl": "https://animevietsub.wiki/statics/default/images/logo.png",
         "isEnabled": true,
@@ -161,7 +161,7 @@ function parseListResponse(htmlContent) {
                 posterUrl: posterUrl,
                 backdropUrl: posterUrl,
                 year: year,
-                quality: "FHD",
+                quality: "HD",
                 episode_current: episode_current,
                 lang: "Vietsub"
             };
@@ -276,50 +276,64 @@ function parseMovieDetail(htmlContent) {
             slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
-        // --- FIX LỖI THIẾU TẬP ---
+        // --- CẢI TIẾN QUÉT TẬP PHIM CHỐNG MẤT TẬP ---
         var episodes = [];
         var addedEps = {};
-        var expectedPath = slug ? ("/phim/" + slug) : "";
-
+        
+        // Quét TẤT CẢ các thẻ <a> trong trang
         var epPattern = /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-        var epMatch;
-        while ((epMatch = epPattern.exec(htmlContent)) !== null) {
-            var epUrl = epMatch[1].trim();
-            var rawName = epMatch[2].replace(/<[^>]*>/g, "").trim();
+        var match;
+        
+        while ((match = epPattern.exec(htmlContent)) !== null) {
+            var epUrl = match[1].trim();
+            var rawName = match[2].replace(/<[^>]*>/g, "").trim();
             
-            if (epUrl.indexOf('javascript:') > -1 || epUrl === '#' || epUrl.toLowerCase().indexOf('download') > -1) continue;
+            if (epUrl === '#' || epUrl.toLowerCase().indexOf('javascript') > -1) continue;
             
-            var isValidEp = false;
-            if (expectedPath && epUrl.indexOf(expectedPath) > -1) {
-                if (epUrl.indexOf('tap-') > -1 || epUrl.indexOf('xem-phim') > -1) isValidEp = true;
-            } else if (epUrl.indexOf('tap-') > -1 && epUrl.indexOf(slug) > -1) {
-                isValidEp = true;
+            // Lọc: Phải là link tập phim hoặc link xem phim của bộ này
+            var isEp = false;
+            if (epUrl.indexOf('tap-') > -1 || epUrl.indexOf('xem-phim') > -1) {
+                if (slug && epUrl.indexOf(slug) > -1) {
+                    isEp = true;
+                } else if (epUrl.startsWith('tap-') || epUrl.startsWith('/tap-') || epUrl.startsWith('xem-phim')) {
+                    isEp = true; // Relative link hợp lệ
+                }
             }
             
-            if (isValidEp) {
-                if (epUrl.indexOf('http') !== 0) {
-                    epUrl = "https://animevietsub.wiki" + (epUrl.startsWith('/') ? "" : "/") + epUrl;
+            if (isEp) {
+                // Chuẩn hóa đường dẫn
+                if (epUrl.startsWith('/')) {
+                    epUrl = "https://animevietsub.wiki" + epUrl;
+                } else if (!epUrl.startsWith('http')) {
+                    epUrl = "https://animevietsub.wiki/phim/" + slug + "/" + epUrl;
                 }
+                
+                // Tránh add trùng lặp cùng 1 tập
                 if (!addedEps[epUrl]) {
-                    var epName = rawName;
-                    if (/^\d+(\.\d+)?$/.test(epName)) epName = "Tập " + epName;
-                    else if (!epName || epName.toLowerCase() === "play" || epName.toLowerCase() === "xem") epName = "Full";
-                    episodes.push({ id: epUrl, name: epName, slug: epUrl });
                     addedEps[epUrl] = true;
+                    var epName = rawName;
+                    
+                    if (/^\d+(\.\d+)?$/.test(epName)) epName = "Tập " + epName; // Gắn chữ Tập nếu chỉ có số
+                    if (!epName || epName.toLowerCase() === 'xem') epName = "Full"; // Fallback tên
+                    
+                    episodes.push({ id: epUrl, name: epName, slug: epUrl });
                 }
             }
         }
 
+        // Cải tiến hàm Sort an toàn: Xử lý mượt cả tập số lẫn tập mang chữ
         episodes.sort(function(a, b) {
-            var numA = a.name.match(/\d+/);
-            var numB = b.name.match(/\d+/);
-            var valA = numA ? parseInt(numA[0], 10) : 0;
-            var valB = numB ? parseInt(numB[0], 10) : 0;
+            var numA = a.name.match(/\d+(\.\d+)?/);
+            var numB = b.name.match(/\d+(\.\d+)?/);
+            
+            var valA = numA ? parseFloat(numA[0]) : (a.name === "Full" ? 0 : 9999);
+            var valB = numB ? parseFloat(numB[0]) : (b.name === "Full" ? 0 : 9999);
+            
             if (valA === valB) return a.name.localeCompare(b.name);
             return valA - valB;
         });
 
-        // Bắt buộc redirect sang xem-phim.html nếu chỉ ở trang Info để lấy trọn bộ
+        // Hỗ trợ fetch trang xem-phim ngầm định nếu trang Info rỗng tập phim
         var isPlayPage = (id && id.indexOf("xem-phim") > -1) || htmlContent.indexOf("window.PLAYER_DATA") > -1;
         var extra = "";
         if (!isPlayPage && slug && slug !== "error") {
@@ -327,13 +341,9 @@ function parseMovieDetail(htmlContent) {
         }
 
         var servers = [];
-        if (isPlayPage && episodes.length > 0) {
-            servers.push({ name: "AnimeVsub", episodes: episodes });
-        } else if (isPlayPage && episodes.length === 0) {
-            episodes.push({ id: id, name: "Full", slug: id });
+        if (episodes.length > 0) {
             servers.push({ name: "AnimeVsub", episodes: episodes });
         }
-        // Nếu không phải isPlayPage, servers = [] để ép app đọc extra link!
 
         return JSON.stringify({
             id: slug,
@@ -345,7 +355,7 @@ function parseMovieDetail(htmlContent) {
             servers: servers,
             episode_current: episode_current,
             lang: "Vietsub",
-            quality: "FHD",
+            quality: "HD",
             category: genres.join(", "),
             country: countries.join(", "),
             status: status,
@@ -373,17 +383,15 @@ function parseDetailResponse(htmlContent, pageUrl) {
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // --- FIX FRAME KILLER --- 
-            var bypassJs = "try { Object.defineProperty(window, 'top', { get: function() { return window; } }); Object.defineProperty(window, 'parent', { get: function() { return window; } }); } catch(e) {}";
-            
+            // --- FIX FRAME KILLER (CHÌA KHÓA QUAN TRỌNG) ---
+            // Bắt buộc trả về isEmbed: false để ép app TẢI link iframe và đưa xuống hàm parseEmbedResponse
+            // thay vì bật WebView lên và dính lỗi chặn frame.
             return JSON.stringify({
                 url: link,
-                isEmbed: true, 
+                isEmbed: false, 
                 headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Referer": pageUrl || "https://animevietsub.wiki/",
-                    "Block-Scripts": "avs-shield", // Block cứng file JS detector của AnimeVietsub
-                    "Custom-Js": bypassJs
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 },
                 subtitles: []
             });
@@ -396,30 +404,41 @@ function parseDetailResponse(htmlContent, pageUrl) {
 
 function parseEmbedResponse(htmlContent, url) {
     try {
-        var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
+        // App sẽ đổ mã nguồn HTML của trang iframe vào đây. 
+        // Ta dùng Regex moi trực tiếp file m3u8/mp4 ra phát luôn, lờ đi đoạn mã JS chặn frame.
+        var m3u8Match = /["'](https?:\/\/[^"'\s]*\.(?:m3u8|mp4)[^"'\s]*?)["']/i.exec(htmlContent) ||
+                        /(https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4)[^\s"'<>]*)/i.exec(htmlContent) ||
+                        /file\s*:\s*["']([^"']+?)["']/i.exec(htmlContent) ||
+                        /source\s*:\s*["']([^"']+?)["']/i.exec(htmlContent);
+        
         if (m3u8Match) {
-            return JSON.stringify({
-                url: m3u8Match[1],
-                isEmbed: false,
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Referer": "https://animevietsub.wiki/"
-                },
-                subtitles: []
-            });
+            var finalUrl = m3u8Match[1];
+            if (finalUrl.indexOf('.m3u8') > -1 || finalUrl.indexOf('.mp4') > -1) {
+                return JSON.stringify({
+                    url: finalUrl,
+                    isEmbed: false,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Referer": url, // Referer phải là link của trang Iframe
+                        "Origin": "https://animevietsub.wiki"
+                    },
+                    subtitles: []
+                });
+            }
         }
 
-        var bypassJs = "try { Object.defineProperty(window, 'top', { get: function() { return window; } }); } catch(e) {}";
-        var refererUrl = url || "https://animevietsub.wiki/";
+        // Phương án dự phòng: Nếu thực sự không bóc được m3u8 thì đành mở Webview
+        // Gắn script bẻ khóa Object window.top mạnh nhất có thể.
+        var bypassJs = "try { Object.defineProperty(window, 'top', { get: function() { return window; } }); Object.defineProperty(window, 'parent', { get: function() { return window; } }); } catch(e) {}";
         
         return JSON.stringify({
             url: url,
             isEmbed: true,
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Referer": refererUrl,
-                "Block-Scripts": "avs-shield",
-                "Custom-Js": bypassJs
+                "Referer": "https://animevietsub.wiki/",
+                "Custom-Js": bypassJs,
+                "Block-Scripts": "avs-shield|devtools|debugger"
             },
             subtitles: []
         });
