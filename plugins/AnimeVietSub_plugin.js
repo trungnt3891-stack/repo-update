@@ -2,13 +2,15 @@
 // CONFIGURATION & METADATA
 // =============================================================================
 
+var BASEURL = "https://animevietsub.love";
+
 function getManifest() {
     return JSON.stringify({
         "id": "animevietsub",
         "name": "AnimeVietSub",
-        "version": "1.0.7",
-        "baseUrl": "https://animevietsub.love",
-        "iconUrl": "https://animevietsub.love/statics/default/images/logo.png",
+        "version": "1.0.8",
+        "baseUrl": BASEURL,
+        "iconUrl": BASEURL + "/statics/default/images/logo.png",
         "isEnabled": true,
         "type": "MOVIE",
         "playerType": "embedtoexoplay"
@@ -50,7 +52,9 @@ function getFilterConfig() {
 
 // Helper log
 function log(msg) {
-    if (typeof console !== 'undefined' && console.log) {
+    if (typeof nativeLog !== 'undefined') {
+        nativeLog("[AnimeVsubPlugin] " + msg);
+    } else if (typeof console !== 'undefined' && console.log) {
         console.log("[AnimeVsubPlugin] " + msg);
     }
 }
@@ -63,8 +67,7 @@ function getUrlList(slug, filtersJson) {
     try {
         var filters = JSON.parse(filtersJson || "{}");
         var page = filters.page || 1;
-        var sort = filters.sort || "latest";
-
+        
         var targetSlug = slug;
         if (filters.category) {
             targetSlug = "the-loai/" + filters.category;
@@ -74,22 +77,20 @@ function getUrlList(slug, filtersJson) {
         if (targetSlug.startsWith("/")) targetSlug = targetSlug.substring(1);
         if (targetSlug.endsWith("/")) targetSlug = targetSlug.substring(0, targetSlug.length - 1);
 
-        var baseUrl = "https://animevietsub.love";
-        
         // Handle Trang chủ (phim mới cập nhật)
         if (targetSlug === 'anime-moi-cap-nhat' || targetSlug === '') {
-            if (page === 1) return baseUrl + "/";
-            return baseUrl + "/anime-moi-cap-nhat/trang-" + page + ".html";
+            if (page === 1) return BASEURL + "/";
+            return BASEURL + "/anime-moi-cap-nhat/trang-" + page + ".html";
         }
 
         // Handle path format
         if (page === 1) {
-            return baseUrl + "/" + targetSlug + "/";
+            return BASEURL + "/" + targetSlug + "/";
         } else {
-            return baseUrl + "/" + targetSlug + "/trang-" + page + ".html";
+            return BASEURL + "/" + targetSlug + "/trang-" + page + ".html";
         }
     } catch (e) {
-        return "https://animevietsub.love/";
+        return BASEURL + "/";
     }
 }
 
@@ -100,47 +101,54 @@ function getUrlSearch(keyword, filtersJson) {
         var cleanKeyword = encodeURIComponent(keyword.trim());
         
         if (page === 1) {
-            return "https://animevietsub.love/tim-kiem/" + cleanKeyword + "/";
+            return BASEURL + "/tim-kiem/" + cleanKeyword + "/";
         } else {
-            return "https://animevietsub.love/tim-kiem/" + cleanKeyword + "/trang-" + page + ".html";
+            return BASEURL + "/tim-kiem/" + cleanKeyword + "/trang-" + page + ".html";
         }
     } catch (e) {
-        return "https://animevietsub.love/";
+        return BASEURL + "/";
     }
 }
 
 function getUrlDetail(slug) {
     if (slug.indexOf("http") === 0) return slug;
-    // Clean slug
     var cleanSlug = slug;
     if (cleanSlug.startsWith("/")) cleanSlug = cleanSlug.substring(1);
     if (cleanSlug.startsWith("phim/")) cleanSlug = cleanSlug.substring(5);
-    
-    return "https://animevietsub.love/phim/" + cleanSlug;
+    return BASEURL + "/phim/" + cleanSlug;
 }
 
-function getUrlCategories() { return "https://animevietsub.love"; }
-function getUrlCountries() { return "https://animevietsub.love"; }
-function getUrlYears() { return "https://animevietsub.love"; }
+function getUrlCategories() { return BASEURL; }
+function getUrlCountries() { return ""; }
+function getUrlYears() { return ""; }
 
 // =============================================================================
 // PARSERS
 // =============================================================================
 
-function parseListResponse(htmlContent) {
+function parseListResponse(htmlContent, $url) {
     try {
-        var movies = [];
+        var items = [];
         var seen = {};
 
-        // Helper: extract movie from card HTML
-        function extractMovie(cardHtml) {
-            var linkMatch = /<a\s+[^>]*href="([^"]*\/phim\/[^"]+)"[^>]*(?:title="([^"]+)")?/i.exec(cardHtml);
-            if (!linkMatch) {
-                linkMatch = /<a\s+href="([^"]+)"\s+title="([^"]+)"/i.exec(cardHtml);
-            }
-            if (!linkMatch) return null;
+        // Parse danh sách phim dùng thư viện _$
+        _$(htmlContent).find("article.TPost, .MovieList li, div.TPost").each(function () {
+            var href = this.find("a").attr("href");
+            if (!href) return;
+            
+            var title = this.find("h2.Title").text() || this.find("div.Title").text() || this.find("a").attr("title");
+            var src = this.find("img").attr("data-src") || this.find("img").attr("src");
+            
+            var epText = this.find(".mli-eps i").text();
+            var episode_current = epText ? "Tập " + epText : "";
 
-            var href = linkMatch[1];
+            var yearText = this.find(".Date").text();
+            var year = parseInt(yearText) || 0;
+            if (!year) {
+                var yearMatch = /\((\d{4})\)/.exec(title);
+                if (yearMatch) year = parseInt(yearMatch[1]);
+            }
+
             var slug = href;
             var slugMatch = /\/phim\/([^/]+)/.exec(href);
             if (slugMatch) {
@@ -148,91 +156,45 @@ function parseListResponse(htmlContent) {
             } else {
                 slug = href.substring(href.lastIndexOf('/') + 1) || href;
             }
-            // Loại bỏ trailing slash
-            slug = slug.replace(/\/$/, '');
-            if (seen[slug]) return null;
-            seen[slug] = true;
+            slug = slug.replace(/\/$/, ''); // clean trailing slash
 
-            var epMatch = /<span class="mli-eps">[\s\S]*?<i>([^<]+)<\/i>/i.exec(cardHtml);
-            var episode_current = epMatch ? "Tập " + epMatch[1].trim() : "";
-
-            var imgMatch = /<img[^>]*(?:src|data-src)="([^"]+)"/i.exec(cardHtml);
-            var posterUrl = imgMatch ? imgMatch[1] : "";
-
-            // Title: h2.Title hoặc div.Title hoặc fallback title attribute
-            var titleMatch = /<h2[^>]*class="Title"[^>]*>([\s\S]*?)<\/h2>/i.exec(cardHtml)
-                || /<div class="Title">([\s\S]*?)<\/div>/i.exec(cardHtml);
-            var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : (linkMatch[2] || "");
-
-            var year = 0;
-            var yearMatch = /<span class="Date[^"]*">\s*(\d{4})\s*<\/span>/i.exec(cardHtml)
-                || /\((\d{4})\)/.exec(title);
-            if (yearMatch) year = parseInt(yearMatch[1]);
-
-            return {
-                id: slug,
-                title: title,
-                posterUrl: posterUrl,
-                backdropUrl: posterUrl,
-                year: year,
-                quality: "FHD",
-                episode_current: episode_current,
-                lang: "Vietsub"
-            };
-        }
-
-        // Pattern 1: <article class="TPost C ..."> (trang danh mục)
-        var articlePattern = /<article class="TPost[^"]*">[\s\S]*?<\/article>/gi;
-        var match;
-        while ((match = articlePattern.exec(htmlContent)) !== null) {
-            var movie = extractMovie(match[0]);
-            if (movie) movies.push(movie);
-        }
-
-        // Pattern 2: <li> trong <ul class="MovieList Newepisode"> (trang chủ)
-        if (movies.length === 0) {
-            var listBlock = /<ul class="MovieList Newepisode">[\s\S]*?<\/ul>/i.exec(htmlContent);
-            if (listBlock) {
-                var liPattern = /<li>[\s\S]*?<\/li>/gi;
-                while ((match = liPattern.exec(listBlock[0])) !== null) {
-                    var movie = extractMovie(match[0]);
-                    if (movie) movies.push(movie);
-                }
+            if (slug && !seen[slug]) {
+                seen[slug] = true;
+                items.push({
+                    "id": slug,
+                    "title": title.trim(),
+                    "posterUrl": src,
+                    "backdropUrl": src,
+                    "year": year,
+                    "quality": "FHD",
+                    "episode_current": episode_current,
+                    "lang": "Vietsub"
+                });
             }
-        }
-
-        // Pattern 3: Fallback - <div class="TPost B"> (sidebar cards)
-        if (movies.length === 0) {
-            var divPattern = /<div class="TPost[^"]*">[\s\S]*?<\/div>\s*<\/div>/gi;
-            while ((match = divPattern.exec(htmlContent)) !== null) {
-                var movie = extractMovie(match[0]);
-                if (movie) movies.push(movie);
-            }
-        }
+        });
 
         // Parse phân trang
         var totalPages = 1;
-        var lastPageMatch = /href="[^"]*trang-(\d+)\.html"[^>]*>Trang Cuối<\/a>/i.exec(htmlContent);
-        if (lastPageMatch) {
-            totalPages = parseInt(lastPageMatch[1]);
+        var lastPageHref = _$(htmlContent).find("a:content('Trang Cuối')").attr("href");
+        if (lastPageHref) {
+            var lastPageMatch = /trang-(\d+)\.html/i.exec(lastPageHref);
+            if (lastPageMatch) totalPages = parseInt(lastPageMatch[1]);
         } else {
-            var pagePattern = /class="page[^"]*">(\d+)<\/a>/gi;
-            var pMatch;
-            while ((pMatch = pagePattern.exec(htmlContent)) !== null) {
-                var pNum = parseInt(pMatch[1]);
+            _$(htmlContent).find(".page").each(function() {
+                var pNum = parseInt(this.text());
                 if (pNum > totalPages) totalPages = pNum;
-            }
+            });
         }
 
         var currentPage = 1;
-        var curPageMatch = /class="[^"]*current[^"]*">(\d+)<\/span>/i.exec(htmlContent);
-        if (curPageMatch) currentPage = parseInt(curPageMatch[1]);
+        var curPageText = _$(htmlContent).find("span.current").text();
+        if (curPageText) currentPage = parseInt(curPageText);
 
         return JSON.stringify({
-            items: movies,
-            pagination: {
-                currentPage: currentPage,
-                totalPages: totalPages
+            "items": items,
+            "pagination": {
+                "currentPage": currentPage,
+                "totalPages": totalPages
             }
         });
     } catch (e) {
@@ -245,83 +207,51 @@ function parseSearchResponse(htmlContent) {
     return parseListResponse(htmlContent);
 }
 
-function parseMovieDetail(htmlContent) {
+function parseMovieDetail(htmlContent, url) {
     try {
-        var idMatch = /<link\s+rel="canonical"\s+href="([^"]+)"/i.exec(htmlContent) || /<meta\s+property="og:url"\s+content="([^"]+)"/i.exec(htmlContent);
-        var id = idMatch ? idMatch[1] : "";
+        var $doc = _$(htmlContent);
+        
+        var id = $doc.find("link[rel='canonical']").attr("href") || $doc.find("meta[property='og:url']").attr("content");
+        
+        var title = $doc.find("h1[itemprop='name']").text() || $doc.find("h1.title").text();
+        var description = $doc.find(".Description, #film-info-desc").text();
+        var posterUrl = $doc.find("img.poster, .attachment-img-mov-md").attr("src") || $doc.find("img.poster").attr("data-src");
 
-        var titleMatch = /<h1[^>]* itemprop="name">([\s\S]*?)<\/h1>/i.exec(htmlContent) || /<h1 class="title">([\s\S]*?)<\/h1>/i.exec(htmlContent);
-        var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+        var genres = $doc.find("span:content('Thể loại:')").parent().find("a").text(", ");
+        var countries = $doc.find("span:content('Quốc gia:')").parent().find("a").text(", ");
+        var year = parseInt($doc.find("span:content('Năm phát hành:')").parent().find("a").text()) || 0;
 
-        var descMatch = /<div class="Description[^"]*" itemprop="description">([\s\S]*?)<\/div>/i.exec(htmlContent) || /<div id="film-info-desc"[^>]*>([\s\S]*?)<\/div>/i.exec(htmlContent);
-        var description = descMatch ? descMatch[1].replace(/<[^>]*>/g, "").trim() : "";
-
-        var posterMatch = /<img[^>]*class="[^"]*attachment-img-mov-md[^"]*"[^>]*(?:src|data-src)="([^"]+)"/i.exec(htmlContent) || /<img class="poster"[^>]*(?:src|data-src)="([^"]+)"/i.exec(htmlContent);
-        var posterUrl = posterMatch ? posterMatch[1] : "";
-
-        var genres = [];
-        var genreBlockMatch = /<li>\s*<span class="info-title">Thể loại:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent) || /Thể loại:([\s\S]*?)(?:<br|<\/li>)/i.exec(htmlContent);
-        if (genreBlockMatch) {
-            var genreMatch;
-            var genrePattern = /<a[^>]*>([^<]+)<\/a>/gi;
-            while ((genreMatch = genrePattern.exec(genreBlockMatch[1])) !== null) {
-                genres.push(genreMatch[1].trim());
-            }
-        }
-
-        var countries = [];
-        var countryBlockMatch = /<li>\s*<span class="info-title">Quốc gia:<\/span>([\s\S]*?)<\/li>/i.exec(htmlContent);
-        if (countryBlockMatch) {
-            var countryMatch;
-            var countryPattern = /<a[^>]*>([^<]+)<\/a>/gi;
-            while ((countryMatch = countryPattern.exec(countryBlockMatch[1])) !== null) {
-                countries.push(countryMatch[1].trim());
-            }
-        }
-
-        var year = 0;
-        var yearMatch = /<li>\s*<span class="info-title">Năm phát hành:<\/span>[\s\S]*?<a[^>]*>(\d{4})<\/a>/i.exec(htmlContent) || /Season:[\s\S]*?- (\d{4})/i.exec(htmlContent);
-        if (yearMatch) year = parseInt(yearMatch[1]);
-
-        var statusMatch = /<li>\s*<span class="info-title">Trạng thái:<\/span>\s*([\s\S]*?)<\/li>/i.exec(htmlContent);
-        var status = statusMatch ? statusMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+        var statusNode = $doc.find("span:content('Trạng thái:')").parent();
+        var status = statusNode.text().replace("Trạng thái:", "").trim();
 
         var episode_current = "";
         if (status) {
-            var epMatch2 = /(Tập \d+|Full|Hoàn Tất)/i.exec(status);
-            if (epMatch2) episode_current = epMatch2[1];
+            var epMatch = /(Tập \d+|Full|Hoàn Tất)/i.exec(status);
+            if (epMatch) episode_current = epMatch[1];
         }
 
-        // Parse danh sách tập phim
+        // Parse list episodes
         var episodes = [];
-        var epPattern = /<a\s+[^>]*href="([^"]*\/tap-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-        var epMatch;
-        while ((epMatch = epPattern.exec(htmlContent)) !== null) {
-            var epUrl = epMatch[1];
-            var epName = epMatch[2].replace(/<[^>]*>/g, "").trim();
+        var seenEp = {};
+        $doc.find("a[href*='/tap-']").each(function() {
+            var epUrl = this.attr("href");
+            var epName = this.text().trim();
             
-            if (epUrl.indexOf('http') !== 0) {
-                epUrl = "https://animevietsub.love" + (epUrl.startsWith('/') ? '' : '/') + epUrl;
+            if (epUrl && epUrl.indexOf('http') !== 0) {
+                epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
             
-            // Tránh add trùng tập
-            var isDuplicate = false;
-            for (var i = 0; i < episodes.length; i++) {
-                if (episodes[i].id === epUrl) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-            if (!isDuplicate) {
+            if (epUrl && !seenEp[epUrl]) {
+                seenEp[epUrl] = true;
                 episodes.push({
                     id: epUrl,
                     name: epName,
                     slug: epUrl
                 });
             }
-        }
+        });
 
-        // Sắp xếp các tập phim theo thứ tự tăng dần (ví dụ Tập 1 -> Tập 13)
+        // Sắp xếp tập
         episodes.sort(function(a, b) {
             var epA = parseInt(a.name) || 0;
             var epB = parseInt(b.name) || 0;
@@ -336,7 +266,7 @@ function parseMovieDetail(htmlContent) {
             });
         }
 
-        // Trích xuất slug từ canonical URL hoặc og:url (id)
+        // Tạo id/slug
         var slug = "";
         if (id) {
             var slugMatch = /\/phim\/([^/]+)/.exec(id);
@@ -347,13 +277,11 @@ function parseMovieDetail(htmlContent) {
             slug = slugMatch2 ? slugMatch2[1] : "";
         }
 
-        // Tạo extra url để tải đầy đủ tập từ trang xem-phim
-        // Kiểm tra bằng canonical URL (biến id) thay vì search toàn HTML vì trang
-        // detail có nav link chứa chuỗi "xem-phim" gây nhận nhầm.
+        // Tạo Extra URL xử lý anti frame trang xem phim
         var extra = "";
         var isPlayPage = (id && id.indexOf("xem-phim") > -1) || htmlContent.indexOf("window.PLAYER_DATA") > -1;
         if (!isPlayPage && slug && slug !== "error") {
-            extra = "https://animevietsub.love/phim/" + slug + "/xem-phim.html";
+            extra = BASEURL + "/phim/" + slug + "/xem-phim.html";
         }
 
         return JSON.stringify({
@@ -367,8 +295,8 @@ function parseMovieDetail(htmlContent) {
             episode_current: episode_current,
             lang: "Vietsub",
             quality: "FHD",
-            category: genres.join(", "),
-            country: countries.join(", "),
+            category: genres,
+            country: countries,
             status: status,
             extra: extra
         });
@@ -380,34 +308,23 @@ function parseMovieDetail(htmlContent) {
 
 function parseDetailResponse(htmlContent, pageUrl) {
     try {
-        log("parseDetailResponse input pageUrl: " + pageUrl);
-        
         var link = "";
-        // Tìm window.PLAYER_DATA
+        // JS Object regex parsing là tốt nhất cho các đoạn json nhúng trong thẻ script
         var match = /window\.PLAYER_DATA\s*=\s*(\{.*?\});/s.exec(htmlContent);
         if (match) {
             var data = JSON.parse(match[1]);
-            if (data && data.link) {
-                link = data.link;
-                log("Extracted player link from window.PLAYER_DATA: " + link);
-            }
+            if (data && data.link) link = data.link;
         }
         
-        // Fallback: Quét tất cả các iframe
+        // Fallback dùng _$_ check iframe
         if (!link) {
-            var iframeMatch = htmlContent.match(/<iframe[^>]*src="([^"]+)"/i);
-            if (iframeMatch) {
-                link = iframeMatch[1];
-                log("Fallback iframe link: " + link);
-            }
+            link = _$(htmlContent).find("iframe").attr("src");
         }
         
         if (link) {
             if (link.indexOf('//') === 0) link = "https:" + link;
             
-            // Bypass anti-frame: inject Custom-Js để override window.top check
-            // Script avs-shield.min.js kiểm tra window.self === window.top
-            // Ta dùng Object.defineProperty ghi đè window.top = window.self
+            // Bypass anti-frame
             var bypassJs = "try{Object.defineProperty(window,'top',{get:function(){return window.self}});}catch(e){}";
             
             return JSON.stringify({
@@ -415,13 +332,12 @@ function parseDetailResponse(htmlContent, pageUrl) {
                 isEmbed: false,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": pageUrl || "https://animevietsub.love/",
+                    "Referer": pageUrl || BASEURL + "/",
                     "Custom-Js": bypassJs
                 },
                 subtitles: []
             });
         }
-        
         return JSON.stringify({ url: "", isEmbed: false, headers: {}, subtitles: [] });
     } catch (e) {
         log("parseDetailResponse error: " + e.message);
@@ -431,25 +347,21 @@ function parseDetailResponse(htmlContent, pageUrl) {
 
 function parseEmbedResponse(htmlContent, url) {
     try {
-        // Thử trích xuất direct HLS stream từ player page
         var m3u8Match = /["'](https?:\/\/[^"'\s]*\.m3u8[^"'\s]*?)["']/i.exec(htmlContent);
         if (m3u8Match) {
-            log("Found m3u8 stream: " + m3u8Match[1]);
             return JSON.stringify({
                 url: m3u8Match[1],
                 isEmbed: false,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Referer": "https://animevietsub.love/"
+                    "Referer": BASEURL + "/"
                 },
                 subtitles: []
             });
         }
 
-        // Không tìm thấy m3u8 → trả embed với Block-Scripts chặn avs-shield
-        // Trích xuất nextUrl từ URL embed hiện tại để làm Referer chuẩn
         var nextUrlMatch = url.match(/nextUrl=([^&]+)/);
-        var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : "https://animevietsub.love/";
+        var referer = nextUrlMatch ? decodeURIComponent(nextUrlMatch[1]) : BASEURL + "/";
 
         return JSON.stringify({
             url: url,
@@ -474,35 +386,22 @@ function parseEmbedResponse(htmlContent, url) {
 function parseCategoriesResponse(htmlContent) {
     try {
         var categories = [];
-        // Parse menu thể loại từ trang chủ
-        var menuBlock = /<ul class="sub-menu[^"]*">([\s\S]*?)<\/ul>/i.exec(htmlContent);
-        if (menuBlock) {
-            var catPattern = /<a\s+href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-            var catMatch;
-            while ((catMatch = catPattern.exec(menuBlock[1])) !== null) {
-                var catSlug = catMatch[1].replace(/\//g, "");
-                var catName = catMatch[2].trim();
-                if (catSlug && catName) {
-                    categories.push({ name: catName, slug: catSlug });
+        var seen = {};
+
+        _$(htmlContent).find("a[href*='/the-loai/']").each(function() {
+            var href = this.attr("href");
+            var name = this.text().trim();
+            var slugMatch = /\/the-loai\/([^/]+)/.exec(href);
+            
+            if (slugMatch && name) {
+                var slug = slugMatch[1].replace(/\//g, "");
+                if (!seen[slug]) {
+                    seen[slug] = true;
+                    categories.push({ name: name, slug: "the-loai/" + slug });
                 }
             }
-        }
-        // Fallback: quét toàn trang nếu không tìm thấy trong submenu
-        if (categories.length === 0) {
-            var fallbackPattern = /<a\s+href="[^"]*\/the-loai\/([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-            var fbMatch;
-            while ((fbMatch = fallbackPattern.exec(htmlContent)) !== null) {
-                var fbSlug = fbMatch[1].replace(/\//g, "");
-                var fbName = fbMatch[2].trim();
-                var exists = false;
-                for (var i = 0; i < categories.length; i++) {
-                    if (categories[i].slug === fbSlug) { exists = true; break; }
-                }
-                if (!exists && fbSlug && fbName) {
-                    categories.push({ name: fbName, slug: fbSlug });
-                }
-            }
-        }
+        });
+        
         return JSON.stringify(categories);
     } catch (e) {
         log("parseCategoriesResponse error: " + e.message);
@@ -510,5 +409,8 @@ function parseCategoriesResponse(htmlContent) {
     }
 }
 
-function parseCountriesResponse(htmlContent) { return "[]"; }
-function parseYearsResponse(htmlContent) { return "[]"; }
+
+// =============================================================================
+// HELPER CỦA YANHH3D (_$ PARSER HTML)
+// =============================================================================
+function _$(htmlOrBlock){if (htmlOrBlock && typeof htmlOrBlock === 'object' && htmlOrBlock.elements) {return htmlOrBlock;} var instance = {sourceHtml: typeof htmlOrBlock === 'string' ? htmlOrBlock : '',elements: Array.isArray(htmlOrBlock) ? htmlOrBlock : (htmlOrBlock ? [htmlOrBlock] : []),find: function (selector) {if (selector.indexOf(',') !== -1) {var results = [];var selectors = selector.split(',').map(function (s) {return s.trim();});for (var s = 0;s < selectors.length;s++) {if (selectors[s] === "") continue;var subInstance = this.find(selectors[s]);for (var r = 0;r < subInstance.elements.length;r++) {var element = subInstance.elements[r];if (results.indexOf(element) === -1) {results.push(element);}}} var multiInstance = _$(results);multiInstance.sourceHtml = this.sourceHtml;return multiInstance;} var results = [];var contentFilter = "";if (selector.indexOf(":content(") !== -1) {var contentMatch = selector.match(/:content\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/);if (contentMatch) {contentFilter = contentMatch[1] || contentMatch[2] || contentMatch[3] || "";selector = selector.replace(/:content\((?:"[^"]*"|'[^']*'|[^)]*)\)/,"");}} var attrNameFilter = "";var attrValueFilter = "";var attrOperator = "=";var hasAttrFilter = false;var attrMatch = selector.match(/\[([a-zA-Z0-9_-]+)\s*([*^$]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]"']*))\]/);if (attrMatch) {hasAttrFilter = true;attrNameFilter = attrMatch[1];attrOperator = attrMatch[2];attrValueFilter = attrMatch[3] || attrMatch[4] || attrMatch[5] || "";selector = selector.replace(/\[.*?\]/,"");} var notSelector = "";if (selector.indexOf(":not(") !== -1) {var notMatch = selector.match(/:not\(([^)]+)\)/);if (notMatch) {notSelector = notMatch[1];selector = selector.replace(/:not\([^)]+\)/,"");}} var isFirstFilter = selector.indexOf(":first") !== -1;var isLastFilter = selector.indexOf(":last") !== -1;selector = selector.replace(/:first|:last/g,"");var targetTagName = "";var targetId = "";var targetClasses = [];var selectorToParse = selector.trim();if (selectorToParse !== "") {var idIndex = selectorToParse.indexOf('#');if (idIndex !== -1) {var afterId = selectorToParse.substring(idIndex + 1);var nextDot = afterId.indexOf('.');targetId = nextDot === -1 ? afterId : afterId.substring(0,nextDot);selectorToParse = selectorToParse.substring(0,idIndex) + (nextDot === -1 ? "" : "." + afterId.substring(nextDot + 1));} var classParts = selectorToParse.split('.');var possibleTag = classParts.shift();if (possibleTag) {targetTagName = possibleTag.toLowerCase();} targetClasses = classParts.filter(function (c) {return c.length > 0;});} for (var i = 0;i < this.elements.length;i++) {var currentHtml = this.elements[i];var pos = 0;var subResults = [];while ((pos = currentHtml.indexOf('<',pos)) !== -1) {if (currentHtml.charAt(pos + 1) === '/' || currentHtml.charAt(pos + 1) === '!') {pos++;continue;} var endOpenTag = -1;var insideQuote = false;var quoteChar = '';for (var j = pos + 1;j < currentHtml.length;j++) {var char = currentHtml.charAt(j);if ((char === '"' || char === "'") && currentHtml.charAt(j - 1) !== '\\') {if (!insideQuote) {insideQuote = true;quoteChar = char;} else if (char === quoteChar) {insideQuote = false;}} if (char === '>' && !insideQuote) {endOpenTag = j;break;}} if (endOpenTag === -1) break;var fullOpenTag = currentHtml.substring(pos,endOpenTag + 1);var tagMatch = fullOpenTag.match(/^<([a-zA-Z0-9_-]+)/);var currentTagName = tagMatch ? tagMatch[1].toLowerCase() : "";var isMatched = true;if (targetTagName && targetTagName !== currentTagName) {isMatched = false;} var getClassAttr = fullOpenTag.match(/class\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);var classMatchStr = getClassAttr ? (getClassAttr[1] || getClassAttr[2] || getClassAttr[3] || "") : "";var getIdAttr = fullOpenTag.match(/id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);var idMatchStr = getIdAttr ? (getIdAttr[1] || getIdAttr[2] || getIdAttr[3] || "") : "";if (isMatched && targetId && idMatchStr !== targetId) {isMatched = false;} if (isMatched && targetClasses.length > 0) {if (classMatchStr) {var currentClasses = classMatchStr.trim().split(/\s+/);for (var c = 0;c < targetClasses.length;c++) {if (currentClasses.indexOf(targetClasses[c]) === -1) {isMatched = false;break;}}} else {isMatched = false;}} if (isMatched && hasAttrFilter) {var actualValue = "";if (attrNameFilter === "class") {actualValue = classMatchStr;} else if (attrNameFilter === "id") {actualValue = idMatchStr;} else {var getAnyAttr = fullOpenTag.match(new RegExp(attrNameFilter + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))','i'));actualValue = getAnyAttr ? (getAnyAttr[1] || getAnyAttr[2] || getAnyAttr[3] || "") : "";} var attrExists = fullOpenTag.search(new RegExp(attrNameFilter + '\\s*=','i')) !== -1;if (!attrExists) {isMatched = false;} else {if (attrOperator === "=") {if (attrNameFilter === "class") {var classes = actualValue.trim().split(/\s+/);if (classes.indexOf(attrValueFilter) === -1) isMatched = false;} else if (actualValue !== attrValueFilter) {isMatched = false;}} else if (attrOperator === "*=") {if (actualValue.indexOf(attrValueFilter) === -1) isMatched = false;} else if (attrOperator === "^=") {if (actualValue.indexOf(attrValueFilter) !== 0) isMatched = false;} else if (attrOperator === "$=") {if (actualValue.slice(-attrValueFilter.length) !== attrValueFilter) isMatched = false;}}} if (isMatched) {var startTagPos = pos;var endTagPos = endOpenTag + 1;var selfClosingTags = ['img','source','input','br','hr','link','meta'];if (selfClosingTags.indexOf(currentTagName) === -1 && fullOpenTag.indexOf('/>') === -1) {var depth = 1;var scanPos = endOpenTag + 1;var openStr = '<' + currentTagName;var closeStr = '</' + currentTagName + '>';while (depth > 0 && scanPos < currentHtml.length) {var nextOpen = currentHtml.indexOf(openStr,scanPos);var nextClose = currentHtml.indexOf(closeStr,scanPos);if (nextClose === -1) {scanPos = currentHtml.length;break;} if (nextOpen !== -1 && nextOpen < nextClose) {depth++;scanPos = nextOpen + openStr.length;} else {depth--;scanPos = nextClose + closeStr.length;if (depth === 0) endTagPos = nextClose + closeStr.length;}}} var foundBlock = currentHtml.substring(startTagPos,endTagPos);if (contentFilter) {var pureText = foundBlock.replace(/<[^>]+>/g,"").trim();if (pureText.indexOf(contentFilter) === -1) {pos = endTagPos;continue;}} if (notSelector) {var isNotClass = notSelector.indexOf('.') === 0;var isNotId = notSelector.indexOf('#') === 0;var notValue = notSelector.substring(1);var hasNot = false;if (isNotClass && classMatchStr.indexOf(notValue) !== -1) hasNot = true;if (isNotId && idMatchStr.indexOf(notValue) !== -1) hasNot = true;if (!hasNot) subResults.push(foundBlock);} else {subResults.push(foundBlock);} pos = endTagPos;} else {pos++;}} if (isFirstFilter && subResults.length > 0) subResults = [subResults[0]];if (isLastFilter && subResults.length > 0) subResults = [subResults[subResults.length - 1]];results = results.concat(subResults);} var newInstance = _$(results);newInstance.sourceHtml = this.sourceHtml || currentHtml;return newInstance;},each: function (callback) {for (var i = 0;i < this.elements.length;i++) {var childInstance = _$(this.elements[i]);childInstance.sourceHtml = this.sourceHtml;callback.call(childInstance,i,this.elements[i]);} return this;},eq: function (index) {if (index < 0) index = this.elements.length + index;var matchedElement = this.elements[index];this.elements = matchedElement ? [matchedElement] : [];return this;},attr: function (attrName) {if (this.elements.length === 0) return "";var elem = this.elements[0];var getAttr = elem.match(new RegExp(attrName + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))','i'));return getAttr ? (getAttr[1] || getAttr[2] || getAttr[3] || "") : "";},html: function () {if (this.elements.length === 0) return "";var elem = this.elements[0];var start = elem.indexOf('>') + 1;var end = elem.lastIndexOf('</');if (start > 0 && end > start) return elem.substring(start,end);return "";},text: function (separator) {if (this.elements.length === 0) return "";var elem = this.elements[0];var start = elem.indexOf('>') + 1;var end = elem.lastIndexOf('</');if (start > 0 && end > start) {var content = elem.substring(start,end);var pureText = content.replace(/<\/?[^>]+(>|$)/g,"");if (typeof separator === 'string') {return pureText .split('\n') .map(function (item) {return item.trim();}) .filter(function (item) {return item !== '';}) .join(separator);} return pureText.trim();} return "";},next: function () {var results = [];if (!this.sourceHtml) return this;for (var i = 0;i < this.elements.length;i++) {var elem = this.elements[i];var idx = this.sourceHtml.indexOf(elem);if (idx === -1) continue;var scanPos = idx + elem.length;var nextOpen = this.sourceHtml.indexOf('<',scanPos);if (nextOpen !== -1) {if (this.sourceHtml.charAt(nextOpen + 1) === '/') continue;var endOpenTag = this.sourceHtml.indexOf('>',nextOpen);if (endOpenTag === -1) continue;var fullOpenTag = this.sourceHtml.substring(nextOpen,endOpenTag + 1);var spacePos = fullOpenTag.indexOf(' ');var currentTagName = (spacePos === -1) ? fullOpenTag.substring(1,fullOpenTag.length - 1).toLowerCase() : fullOpenTag.substring(1,spacePos).toLowerCase();var startTagPos = nextOpen;var endTagPos = endOpenTag + 1;var selfClosingTags = ['img','source','input','br','hr','link','meta'];if (selfClosingTags.indexOf(currentTagName) === -1 && fullOpenTag.indexOf('/>') === -1) {var depth = 1;var sPos = endOpenTag + 1;var openStr = '<' + currentTagName;var closeStr = '</' + currentTagName + '>';while (depth > 0 && sPos < this.sourceHtml.length) {var nOpen = this.sourceHtml.indexOf(openStr,sPos);var nClose = this.sourceHtml.indexOf(closeStr,sPos);if (nClose === -1) break;if (nOpen !== -1 && nOpen < nClose) {depth++;sPos = nOpen + openStr.length;} else {depth--;sPos = nClose + closeStr.length;if (depth === 0) endTagPos = nClose + closeStr.length;}}} results.push(this.sourceHtml.substring(startTagPos,endTagPos));}} var nextInstance = _$(results);nextInstance.sourceHtml = this.sourceHtml;this.elements = results;return this;},parent: function () {var results = [];if (!this.sourceHtml) return this;for (var i = 0;i < this.elements.length;i++) {var elem = this.elements[i];var idx = this.sourceHtml.indexOf(elem);if (idx <= 0) continue;var scanPos = idx - 1;while (scanPos >= 0) {var openTagPos = this.sourceHtml.lastIndexOf('<',scanPos);if (openTagPos === -1) break;if (this.sourceHtml.charAt(openTagPos + 1) !== '/' && this.sourceHtml.charAt(openTagPos + 1) !== '!') {var endOpenTag = this.sourceHtml.indexOf('>',openTagPos);if (endOpenTag !== -1 && endOpenTag > openTagPos) {var fullOpenTag = this.sourceHtml.substring(openTagPos,endOpenTag + 1);var spacePos = fullOpenTag.indexOf(' ');var currentTagName = (spacePos === -1) ? fullOpenTag.substring(1,fullOpenTag.length - 1).toLowerCase() : fullOpenTag.substring(1,spacePos).toLowerCase();var endTagPos = endOpenTag + 1;var selfClosingTags = ['img','source','input','br','hr','link','meta'];if (selfClosingTags.indexOf(currentTagName) === -1 && fullOpenTag.indexOf('/>') === -1) {var depth = 1;var sPos = endOpenTag + 1;var openStr = '<' + currentTagName;var closeStr = '</' + currentTagName + '>';while (depth > 0 && sPos < this.sourceHtml.length) {var nOpen = this.sourceHtml.indexOf(openStr,sPos);var nClose = this.sourceHtml.indexOf(closeStr,sPos);if (nClose === -1) break;if (nOpen !== -1 && nOpen < nClose) {depth++;sPos = nOpen + openStr.length;} else {depth--;sPos = nClose + closeStr.length;if (depth === 0) endTagPos = nClose + closeStr.length;}}} if (endTagPos >= idx + elem.length) {var parentBlock = this.sourceHtml.substring(openTagPos,endTagPos);if (results.indexOf(parentBlock) === -1) results.push(parentBlock);break;}}} scanPos = openTagPos - 1;}} var parentInstance = _$(results);parentInstance.sourceHtml = this.sourceHtml;this.elements = results;return this;},closest: function (selector) {var results = [];if (!this.sourceHtml || this.elements.length === 0) return _$([]);for (var i = 0;i < this.elements.length;i++) {var currentElem = this.elements[i];var currentObj = _$(currentElem);currentObj.sourceHtml = this.sourceHtml;var selfCheck = _$(this.sourceHtml).find(selector);var isSelfMatched = false;for (var s = 0;s < selfCheck.elements.length;s++) {if (selfCheck.elements[s] === currentElem) {isSelfMatched = true;break;}} if (isSelfMatched) {if (results.indexOf(currentElem) === -1) results.push(currentElem);continue;} var parentObj = currentObj.parent();while (parentObj.elements.length > 0) {var parentElem = parentObj.elements[0];var checkMatch = _$(this.sourceHtml).find(selector);var isMatched = false;for (var j = 0;j < checkMatch.elements.length;j++) {if (checkMatch.elements[j] === parentElem) {isMatched = true;break;}} if (isMatched) {if (results.indexOf(parentElem) === -1) results.push(parentElem);break;} parentObj = parentObj.parent();}} var closestInstance = _$(results);closestInstance.sourceHtml = this.sourceHtml;return closestInstance;}};return instance;}
