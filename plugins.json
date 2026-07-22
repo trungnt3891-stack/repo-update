@@ -2,20 +2,6 @@
   "version": 1,
   "plugins": [
     {
-      "id": "phimchill",
-      "name": "Phim Chill",
-      "version": "3.7.8",
-      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/phimchill_plugin.js",
-      "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimchill.ico"
-    },
-    {
-      "id": "phimhayok",
-      "name": "Phim Hay Ok",
-      "version": "1.1.1",
-      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/phimhayok_plugin.js",
-      "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimhayok.jpg"
-    },
-    {
       "id": "nguoncnew",
       "name": "Nguồn C No ADS",
       "version": "1.29",
@@ -51,27 +37,12 @@
       "iconUrl": "https://yanhh3d.ac/storage/settings/January2026/yme.png"
     },
     {
-      "id": "motchill",
-      "name": "Nguồn Motchill",
-      "version": "1.0.7",
-      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/motchill_plugin.js",
-      "iconUrl": "https://motchille.cx/motchill.png"
-    },
-    {
       "id": "gamomephim",
       "name": "Gà Mờ Mê Phim",
       "version": "1.1",
       "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/gamomephim_plugin.js",
       "iconUrl": "https://cdn.gamomephim.com/site/logo-1784305321242.png"
     },
-    {
-      "id": "shortflix",
-      "name": "Phim Ngắn Hay",
-      "version": "1.1.2",
-      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/0c6ddf44dc90420a19beb48484147163e80fd2cc/Plugins/shortflix_plugin.js",
-      "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/shortflix.png"
-    },
-
     {
       "id": "ophim",
       "name": "OPhim",
@@ -86,14 +57,7 @@
       "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim_plugin.js",
       "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim.png"
     },
-    {
-      "id": "nguonc",
-      "name": "Phim NguonC",
-      "version": "1.1.5",
-      "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonc_plugin.js",
-      "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png"
-    },
-    {
+        {
       "id": "clbpx",
       "name": "CLB Phim Xưa",
       "version": "1.0.6",
@@ -134,20 +98,6 @@
       "version": "1.0.3",
       "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/VTV_plugin.js",
       "iconUrl": "https://thuvienvector.vn/wp-content/uploads/2025/09/logo-vtv-png.jpg"
-    },
-    {
-      "id": "Thethao",
-      "name": "Thethao",
-      "version": "1.0.3",
-      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Thethao_plugin.js",
-      "iconUrl": "https://cdn.adminsosmap.site/wp-content/uploads/2025/05/Thiet-ke-chua-co-ten-34.png"
-    },
-    {
-      "id": "AnimeVS",
-      "name": "AnimeVietsub",
-      "version": "1.26",
-      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/AnimeVietSub_plugin.js",
-      "iconUrl": "https://animevietsub.love/statics/default/images/logo.png"
     }
   ]
 }
