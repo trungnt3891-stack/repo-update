@@ -3,7 +3,7 @@
   "plugins": [
     {
       "id": "nguoncnew",
-      "name": "Nguồn C No ADS",
+      "name": "NguồnC Ko ưu tiên",
       "version": "1.29",
       "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/e31d0bfcee3f7d0c3facf875539b029d459b0242/Plugins/nguoncnew.js",
       "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png"
