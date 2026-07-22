@@ -9,13 +9,6 @@
       "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png"
     },
     {
-      "id": "phimnganhdc",
-      "name": "Phim Ngắn HDC",
-      "version": "1.2",
-      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/phimnganhdc_plugin.js",
-      "iconUrl": "https://phimnganhdc.com/storage/files/logo-phimnganhdc.png"
-    },
-    {
       "id": "onflix",
       "name": "Onflix Phim",
       "version": "1.7.6",
