@@ -57,13 +57,6 @@
       "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim_plugin.js",
       "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim.png"
     },
-        {
-      "id": "clbpx",
-      "name": "CLB Phim Xưa",
-      "version": "1.0.6",
-      "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/clbpx_plugin.js",
-      "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/clbpx.ico"
-    },
     {
       "id": "phimhdcs",
       "name": "PhimHDCSS",
