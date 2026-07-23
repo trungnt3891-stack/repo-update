@@ -1,7 +1,3 @@
-// =============================================================================
-// CONFIGURATION & METADATA
-// =============================================================================
-
 function getManifest() {
     return JSON.stringify({
         "id": "animehay",
@@ -41,18 +37,16 @@ function getPrimaryCategories() {
     ]);
 }
 
-function getFilterConfig() { return JSON.stringify({}); }
-
-// =============================================================================
-// URL GENERATION
-// =============================================================================
+function getFilterConfig() {
+    return JSON.stringify({});
+}
 
 function getUrlList(slug, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
     var baseUrl = "https://animehay09.site";
     
-    if (!slug) slug = "phim-moi-cap-nhap/tat-ca";
+    if (!slug || slug === "") slug = "phim-moi-cap-nhap/tat-ca";
     slug = slug.replace(/\.html$/i, "");
     
     if (slug === "phim-moi-cap-nhap/tat-ca") {
@@ -82,10 +76,6 @@ function getUrlCategories() { return ""; }
 function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
-// =============================================================================
-// PARSERS
-// =============================================================================
-
 var PluginUtils = {
     cleanText: function (text) {
         if (!text) return "";
@@ -99,55 +89,60 @@ var PluginUtils = {
 };
 
 function parseListResponse(html) {
-    var movies = [];
-    var parts = html.split('class="mc"');
-    
-    for (var i = 1; i < parts.length; i++) {
-        var p = parts[i];
+    try {
+        var movies = [];
+        var parts = html.split('class="mc"');
         
-        // Cat chuoi de tang toc do va chong loi QuickJS
-        var endA = p.indexOf('</a>');
-        if (endA !== -1) p = p.substring(0, endA);
-        
-        var urlM = p.match(/href=["']([^"']+)["']/i);
-        var titleM = p.match(/class=["'][^"']*mc__name[^"']*["'][^>]*>([^<]+)</i);
-        var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
-        var epM = p.match(/class=["'][^"']*mc__ep-badge[^"']*["'][^>]*>([^<]+)</i);
-        var scoreM = p.match(/class=["'][^"']*mc__score[^"']*["'][^>]*>([^<]+)</i);
+        for (var i = 1; i < parts.length; i++) {
+            var p = parts[i];
+            
+            var endA = p.indexOf('</a>');
+            if (endA !== -1) p = p.substring(0, endA);
+            
+            var urlM = p.match(/href=["']([^"']+)["']/i);
+            var titleM = p.match(/class=["'][^"']*mc__name[^"']*["'][^>]*>([^<]+)</i);
+            var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
+            var epM = p.match(/class=["'][^"']*mc__ep-badge[^"']*["'][^>]*>([^<]+)</i);
+            var scoreM = p.match(/class=["'][^"']*mc__score[^"']*["'][^>]*>([^<]+)</i);
 
-        if (urlM && titleM && imgM) {
-            var url = urlM[1];
-            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-            
-            if (slug.indexOf('xem-phim') !== -1) continue;
-            
-            movies.push({
-                id: slug,
-                title: PluginUtils.cleanText(titleM[1]),
-                posterUrl: imgM[1],
-                backdropUrl: imgM[1],
-                quality: scoreM ? PluginUtils.cleanText(scoreM[1]) : "HD",
-                episode_current: epM ? PluginUtils.cleanText(epM[1]) : "Full",
-                lang: "Vietsub",
-                year: 0
-            });
+            if (urlM && titleM && imgM) {
+                var url = urlM[1];
+                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                
+                if (slug.indexOf('xem-phim') !== -1) continue;
+                
+                movies.push({
+                    id: slug,
+                    title: PluginUtils.cleanText(titleM[1]),
+                    posterUrl: imgM[1],
+                    backdropUrl: imgM[1],
+                    quality: scoreM ? PluginUtils.cleanText(scoreM[1]) : "HD",
+                    episode_current: epM ? PluginUtils.cleanText(epM[1]) : "Full",
+                    lang: "Vietsub",
+                    year: 0
+                });
+            }
         }
+
+        var totalPages = 100;
+        var currentPage = 1;
+        var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
+        if (currentMatch) {
+            currentPage = parseInt(currentMatch[1], 10);
+        }
+        
+        return JSON.stringify({
+            items: movies,
+            pagination: {
+                currentPage: currentPage,
+                totalPages: totalPages,
+                totalItems: 9999,
+                itemsPerPage: 20
+            }
+        });
+    } catch (e) {
+        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
-
-    var totalPages = 100;
-    var currentPage = 1;
-    var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
-    if (currentMatch) currentPage = parseInt(currentMatch[1], 10);
-    
-    return JSON.stringify({
-        items: movies,
-        pagination: {
-            currentPage: currentPage,
-            totalPages: totalPages,
-            totalItems: 9999,
-            itemsPerPage: 20
-        }
-    });
 }
 
 function parseSearchResponse(html) {
@@ -244,7 +239,7 @@ function parseMovieDetail(html) {
             status: episodes.length > 0 ? episodes.length + " Tập" : "Đang cập nhật"
         });
     } catch (e) {
-        return "null";
+        return JSON.stringify({});
     }
 }
 
@@ -278,9 +273,9 @@ function parseDetailResponse(html) {
                 isEmbed: true 
             });
         }
-        return "{}";
+        return JSON.stringify({});
     } catch (e) {
-        return "{}";
+        return JSON.stringify({});
     }
 }
 
@@ -307,7 +302,7 @@ function parseEmbedResponse(html, sourceUrl) {
                 headers: {
                     "Referer": sourceUrl,
                     "Origin": sourceUrl.split('/').slice(0, 3).join('/'),
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    "User-Agent": "Mozilla/5.0"
                 }
             });
         }
