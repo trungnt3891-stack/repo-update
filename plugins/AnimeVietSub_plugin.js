@@ -6,14 +6,14 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "6.0.0",
-        "baseUrl": "https://animehay09.site", 
+        "version": "1.0.0",
+        "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/logo.png",
         "isEnabled": true,
         "isAdult": false,
         "type": "MOVIE",
         "layoutType": "VERTICAL",
-        "playerType": "auto" 
+        "playerType": "auto"
     });
 }
 
@@ -100,16 +100,20 @@ var PluginUtils = {
 
 function parseListResponse(html) {
     var movies = [];
-    var parts = html.split(/class=["'](?:mc|movie-item)["']/i);
+    var parts = html.split('class="mc"');
     
     for (var i = 1; i < parts.length; i++) {
         var p = parts[i];
         
+        // Cat chuoi de tang toc do va chong loi QuickJS
+        var endA = p.indexOf('</a>');
+        if (endA !== -1) p = p.substring(0, endA);
+        
         var urlM = p.match(/href=["']([^"']+)["']/i);
-        var titleM = p.match(/class=["'][^"']*(?:mc__name|name-movie)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+        var titleM = p.match(/class=["'][^"']*mc__name[^"']*["'][^>]*>([^<]+)</i);
         var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
-        var epM = p.match(/class=["'][^"']*(?:mc__ep-badge|episode-latest)[^"']*["'][^>]*>([\s\S]*?)<\//i);
-        var scoreM = p.match(/class=["'][^"']*(?:mc__score|score)[^"']*["'][^>]*>([\s\S]*?)<\//i);
+        var epM = p.match(/class=["'][^"']*mc__ep-badge[^"']*["'][^>]*>([^<]+)</i);
+        var scoreM = p.match(/class=["'][^"']*mc__score[^"']*["'][^>]*>([^<]+)</i);
 
         if (urlM && titleM && imgM) {
             var url = urlM[1];
@@ -133,7 +137,7 @@ function parseListResponse(html) {
     var totalPages = 100;
     var currentPage = 1;
     var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
-    if (currentMatch) currentPage = parseInt(currentMatch[1]);
+    if (currentMatch) currentPage = parseInt(currentMatch[1], 10);
     
     return JSON.stringify({
         items: movies,
@@ -218,7 +222,7 @@ function parseMovieDetail(html) {
         if (episodes.length > 1) {
             var fM = episodes[0].name.match(/\d+/);
             var lM = episodes[episodes.length-1].name.match(/\d+/);
-            if (fM && lM && parseInt(fM[0]) > parseInt(lM[0])) {
+            if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
                 episodes.reverse();
             }
         }
@@ -314,7 +318,6 @@ function parseEmbedResponse(html, sourceUrl) {
     }
 }
 
-// BA HÀM BẮT BUỘC PHẢI CÓ ĐỂ VAX KHÔNG BÁO LỖI "FILE KHÔNG HỢP LỆ"
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
