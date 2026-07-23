@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "5.0.0", // Nâng version để App xóa cache bản cũ
+        "version": "6.0.0",
         "baseUrl": "https://animehay09.site", 
         "iconUrl": "https://animehay09.site/themes/img/logo.png",
         "isEnabled": true,
@@ -55,12 +55,10 @@ function getUrlList(slug, filtersJson) {
     if (!slug) slug = "phim-moi-cap-nhap/tat-ca";
     slug = slug.replace(/\.html$/i, "");
     
-    // Đối với trang chủ "Mới cập nhật" cấu trúc là: /phim-moi-cap-nhap/tat-ca-1.html
     if (slug === "phim-moi-cap-nhap/tat-ca") {
         return baseUrl + "/" + slug + "-" + page + ".html";
     }
     
-    // Đối với thể loại: Trang 1 không có "trang-1", từ trang 2 trở đi mới có
     if (page === 1) {
         return baseUrl + "/" + slug + ".html";
     } else {
@@ -102,8 +100,6 @@ var PluginUtils = {
 
 function parseListResponse(html) {
     var movies = [];
-    
-    // Chặt HTML theo class mc để lấy từng bộ phim, cách này an toàn hơn Regex dài
     var parts = html.split(/class=["'](?:mc|movie-item)["']/i);
     
     for (var i = 1; i < parts.length; i++) {
@@ -119,7 +115,6 @@ function parseListResponse(html) {
             var url = urlM[1];
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
-            // Loại bỏ các link vô tình trỏ thẳng vào tập phim
             if (slug.indexOf('xem-phim') !== -1) continue;
             
             movies.push({
@@ -135,7 +130,7 @@ function parseListResponse(html) {
         }
     }
 
-    var totalPages = 100; // Cho cuộn thoải mái
+    var totalPages = 100;
     var currentPage = 1;
     var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
     if (currentMatch) currentPage = parseInt(currentMatch[1]);
@@ -164,22 +159,22 @@ function parseMovieDetail(html) {
         var title = titleM ? PluginUtils.cleanText(titleM[1]) : "";
         title = title.replace(/\|\| AnimeHay/gi, "").trim();
         var tapIdx = title.lastIndexOf(" Tập");
-        if (tapIdx > 0) title = title.substring(0, tapIdx); // Cắt bỏ chữ " Tập 358" ra khỏi tên phim
+        if (tapIdx > 0) title = title.substring(0, tapIdx);
         title = title.replace(/^Phim /gi, "").trim();
 
         var poster = posterM ? posterM[1] : "";
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "";
 
-        // BƯỚC QUAN TRỌNG: Cắt gọn HTML, CHỈ giữ lại khu vực chứa danh sách tập. 
-        // Tránh tình trạng ăn vạ sang phần "Phim Tương Tự".
         var epBlock = "";
         var aimIdx = html.indexOf('aim-episodes');
         if (aimIdx !== -1) {
-            epBlock = html.substring(aimIdx, html.indexOf('aim-desc', aimIdx) !== -1 ? html.indexOf('aim-desc', aimIdx) : html.length);
+            var aimEnd = html.indexOf('aim-desc', aimIdx);
+            epBlock = html.substring(aimIdx, aimEnd !== -1 ? aimEnd : html.length);
         } else {
             var wpIdx = html.indexOf('wp-eplist');
             if (wpIdx !== -1) {
-                epBlock = html.substring(wpIdx, html.indexOf('wp-comments-block', wpIdx) !== -1 ? html.indexOf('wp-comments-block', wpIdx) : html.length);
+                var wpEnd = html.indexOf('wp-comments-block', wpIdx);
+                epBlock = html.substring(wpIdx, wpEnd !== -1 ? wpEnd : html.length);
             }
         }
 
@@ -212,16 +207,14 @@ function parseMovieDetail(html) {
             }
         }
 
-        // Nếu phim lẻ không có list tập, tìm nút "Xem ngay"
         if (episodes.length === 0) {
             var watchBtn = html.match(/href=["']([^"']+)["'][^>]*class=["'][^"']*aim-btn-watch/i);
             if (watchBtn && watchBtn[1].indexOf('xem-phim') !== -1) {
-                var epSlug = watchBtn[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                episodes.push({id: epSlug, name: "Xem Ngay", slug: epSlug});
+                var wSlug = watchBtn[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                episodes.push({id: wSlug, name: "Xem Ngay", slug: wSlug});
             }
         }
 
-        // Sắp xếp tập 1 lên đầu
         if (episodes.length > 1) {
             var fM = episodes[0].name.match(/\d+/);
             var lM = episodes[episodes.length-1].name.match(/\d+/);
@@ -230,13 +223,15 @@ function parseMovieDetail(html) {
             }
         }
 
+        var servers = episodes.length > 0 ? [{ name: "Server AnimeHay", episodes: episodes }] : [];
+
         return JSON.stringify({
             id: "",
             title: title,
             posterUrl: poster,
             backdropUrl: poster,
             description: desc,
-            servers: episodes.length > 0 ? [{ name: "Server AnimeHay", episodes: episodes }] : [],
+            servers: servers,
             quality: "HD",
             lang: "Vietsub",
             year: 0,
@@ -285,21 +280,14 @@ function parseDetailResponse(html) {
     }
 }
 
-// =============================================================================
-// RECURSIVE EMBED PARSER - BÓC LINK M3U8/MP4 TỪ TRANG IFRAME ĐỂ CHẠY EXOPLAYER
-// =============================================================================
-
 function parseEmbedResponse(html, sourceUrl) {
     try {
         var streamUrl = "";
-
-        // 1. Quét tìm link m3u8 lộ thiên trong mã nguồn của trang iframe (ahay.stream / abyssplayer)
         var m3u8Match = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
         if (m3u8Match) {
-            streamUrl = m3u8Match[1].replace(/\\/g, ""); // Dọn dẹp ký tự escape \/
+            streamUrl = m3u8Match[1].replace(/\\/g, "");
         }
 
-        // 2. Nếu không có m3u8, thử tìm link mp4
         if (!streamUrl) {
             var mp4Match = html.match(/(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/i);
             if (mp4Match) {
@@ -307,11 +295,10 @@ function parseEmbedResponse(html, sourceUrl) {
             }
         }
 
-        // 3. Trả về link gốc
         if (streamUrl) {
             return JSON.stringify({
                 url: streamUrl,
-                isEmbed: false, // Báo App đã tìm thấy link direct
+                isEmbed: false,
                 mimeType: streamUrl.indexOf(".m3u8") !== -1 ? "application/x-mpegURL" : "video/mp4",
                 headers: {
                     "Referer": sourceUrl,
@@ -326,3 +313,8 @@ function parseEmbedResponse(html, sourceUrl) {
         return JSON.stringify({ url: "", isEmbed: false });
     }
 }
+
+// BA HÀM BẮT BUỘC PHẢI CÓ ĐỂ VAX KHÔNG BÁO LỖI "FILE KHÔNG HỢP LỆ"
+function parseCategoriesResponse(html) { return "[]"; }
+function parseCountriesResponse(html) { return "[]"; }
+function parseYearsResponse(html) { return "[]"; }
