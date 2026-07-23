@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "tinhlagitv",
         "name": "Tinhlagi TV",
-        "version": "1.0.2", // Cập nhật version để App xóa cache
+        "version": "1.0.3", // Cập nhật version để App xóa cache
         "baseUrl": "https://tinhlagi.pro/tivi",
         "iconUrl": "https://tinhlagi.pro/tinhlagi.ico",
         "isEnabled": true,
@@ -104,18 +104,23 @@ function parseSearchResponse(html) {
 
 function parseMovieDetail(html) {
     try {
+        // Sắp xếp thứ tự ưu tiên tránh lỗi gộp nhầm (VTVcab trước VTV, HTVC trước HTV)
         var requiredGroups = ["VTVcab", "VTV", "SCTV", "HTVC", "HTV", "Địa phương", "Thiết yếu"];
         var servers = [];
 
-        var groupBlocks = html.split('<h2 class="group-title">');
+        // Chặt HTML theo khối thẻ h2 class group-title
+        var groupBlocks = html.split(/<h2[^>]*class=["'][^"']*group-title[^"']*["'][^>]*>/i);
         
         for (var i = 1; i < groupBlocks.length; i++) {
             var block = groupBlocks[i];
             
             var titleEnd = block.indexOf('</h2>');
+            if (titleEnd === -1) continue;
+            
             var rawTitle = block.substring(0, titleEnd);
             var groupName = PluginUtils.cleanText(rawTitle).split('(')[0].trim(); 
             
+            // Đối chiếu xem nhóm kênh này có nằm trong danh sách cần lấy không
             var isRequired = false;
             for (var j = 0; j < requiredGroups.length; j++) {
                 if (groupName.indexOf(requiredGroups[j]) !== -1) {
@@ -129,31 +134,28 @@ function parseMovieDetail(html) {
             var episodes = [];
             var seenEps = {};
             
-            // ĐÃ SỬA: Cắt bằng thẻ <a để không bỏ sót kênh đầu tiên của nhóm
-            var channelParts = block.split('<a ');
+            // DÙNG REGEX QUÉT TRỰC TIẾP URL: Không bị sót kênh đầu tiên do lỗi sai trật tự HTML
+            var aRegex = /href=["']\?url=([^&"']+)&(?:amp;)?name=([^"']+)["']/gi;
+            var aMatch;
             
-            for (var k = 1; k < channelParts.length; k++) {
-                var cp = channelParts[k];
-                var urlM = cp.match(/href=["']\?url=([^&"']+)/i);
-                var nameM = cp.match(/name=([^"']+)/i);
+            while ((aMatch = aRegex.exec(block)) !== null) {
+                var streamLink = decodeURIComponent(aMatch[1]); 
                 
-                if (urlM && nameM) {
-                    var streamLink = decodeURIComponent(urlM[1]); 
-                    
-                    var rawName = decodeURIComponent(nameM[1]);
-                    if (rawName.indexOf('#') !== -1) {
-                        rawName = rawName.split('#')[0];
-                    }
-                    var channelName = rawName.replace(/\+/g, " ").trim();
-                    
-                    if (!seenEps[streamLink]) {
-                        episodes.push({
-                            id: streamLink, 
-                            name: channelName,
-                            slug: "live-channel"
-                        });
-                        seenEps[streamLink] = true;
-                    }
+                var rawName = decodeURIComponent(aMatch[2]);
+                // Lọc bỏ đoạn #player-area bị thừa
+                if (rawName.indexOf('#') !== -1) {
+                    rawName = rawName.split('#')[0];
+                }
+                var channelName = rawName.replace(/\+/g, " ").trim();
+                
+                // Tránh lỗi lặp lại kênh
+                if (!seenEps[streamLink]) {
+                    episodes.push({
+                        id: streamLink, 
+                        name: channelName,
+                        slug: "live-channel"
+                    });
+                    seenEps[streamLink] = true;
                 }
             }
 
@@ -192,6 +194,7 @@ function parseEmbedResponse(html, sourceUrl) {
     return JSON.stringify({ url: "", isEmbed: false });
 }
 
+// CÁC HÀM BẮT BUỘC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ" TRÊN VAX
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
