@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "4.0.0",
+        "version": "5.0.0", // Nâng version để App xóa cache bản cũ
         "baseUrl": "https://animehay09.site", 
         "iconUrl": "https://animehay09.site/themes/img/logo.png",
         "isEnabled": true,
@@ -111,7 +111,7 @@ function parseListResponse(html) {
         
         var urlM = p.match(/href=["']([^"']+)["']/i);
         var titleM = p.match(/class=["'][^"']*(?:mc__name|name-movie)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
-        var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i);
+        var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
         var epM = p.match(/class=["'][^"']*(?:mc__ep-badge|episode-latest)[^"']*["'][^>]*>([\s\S]*?)<\//i);
         var scoreM = p.match(/class=["'][^"']*(?:mc__score|score)[^"']*["'][^>]*>([\s\S]*?)<\//i);
 
@@ -282,5 +282,47 @@ function parseDetailResponse(html) {
         return "{}";
     } catch (e) {
         return "{}";
+    }
+}
+
+// =============================================================================
+// RECURSIVE EMBED PARSER - BÓC LINK M3U8/MP4 TỪ TRANG IFRAME ĐỂ CHẠY EXOPLAYER
+// =============================================================================
+
+function parseEmbedResponse(html, sourceUrl) {
+    try {
+        var streamUrl = "";
+
+        // 1. Quét tìm link m3u8 lộ thiên trong mã nguồn của trang iframe (ahay.stream / abyssplayer)
+        var m3u8Match = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
+        if (m3u8Match) {
+            streamUrl = m3u8Match[1].replace(/\\/g, ""); // Dọn dẹp ký tự escape \/
+        }
+
+        // 2. Nếu không có m3u8, thử tìm link mp4
+        if (!streamUrl) {
+            var mp4Match = html.match(/(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/i);
+            if (mp4Match) {
+                streamUrl = mp4Match[1].replace(/\\/g, "");
+            }
+        }
+
+        // 3. Trả về link gốc
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                isEmbed: false, // Báo App đã tìm thấy link direct
+                mimeType: streamUrl.indexOf(".m3u8") !== -1 ? "application/x-mpegURL" : "video/mp4",
+                headers: {
+                    "Referer": sourceUrl,
+                    "Origin": sourceUrl.split('/').slice(0, 3).join('/'),
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+            });
+        }
+
+        return JSON.stringify({ url: "", isEmbed: false });
+    } catch (e) {
+        return JSON.stringify({ url: "", isEmbed: false });
     }
 }
