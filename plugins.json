@@ -58,13 +58,6 @@
       "iconUrl": "https://phimhdcss.com/favicon.ico"
     },
     {
-      "id": "hh3d",
-      "name": "HH3D - Hoạt Hình 3D",
-      "version": "1.0.3",
-      "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/hh3d_plugin.js",
-      "iconUrl": "https://hoathinh3d.co/wp-content/uploads/2023/09/favicon.png"
-    },
-    {
       "id": "otruyen",
       "name": "OTruyen",
       "version": "1.0.2",
