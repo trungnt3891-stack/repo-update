@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "tinhlagitv",
         "name": "Tinhlagi TV",
-        "version": "1.0.1",
+        "version": "1.0.2", // Cập nhật version để App xóa cache
         "baseUrl": "https://tinhlagi.pro/tivi",
         "iconUrl": "https://tinhlagi.pro/tinhlagi.ico",
         "isEnabled": true,
@@ -104,7 +104,6 @@ function parseSearchResponse(html) {
 
 function parseMovieDetail(html) {
     try {
-        // Đảo thứ tự để ưu tiên VTVcab trước VTV, HTVC trước HTV tránh lỗi gộp nhầm nhóm kênh
         var requiredGroups = ["VTVcab", "VTV", "SCTV", "HTVC", "HTV", "Địa phương", "Thiết yếu"];
         var servers = [];
 
@@ -129,17 +128,18 @@ function parseMovieDetail(html) {
 
             var episodes = [];
             var seenEps = {};
-            var channelParts = block.split('class="channel-card');
+            
+            // ĐÃ SỬA: Cắt bằng thẻ <a để không bỏ sót kênh đầu tiên của nhóm
+            var channelParts = block.split('<a ');
             
             for (var k = 1; k < channelParts.length; k++) {
                 var cp = channelParts[k];
                 var urlM = cp.match(/href=["']\?url=([^&"']+)/i);
-                var nameM = cp.match(/&name=([^"']+)/i);
+                var nameM = cp.match(/name=([^"']+)/i);
                 
                 if (urlM && nameM) {
                     var streamLink = decodeURIComponent(urlM[1]); 
                     
-                    // Lọc bỏ đoạn #player-area thừa bị dính vào tên kênh
                     var rawName = decodeURIComponent(nameM[1]);
                     if (rawName.indexOf('#') !== -1) {
                         rawName = rawName.split('#')[0];
