@@ -285,18 +285,17 @@ function parseDetailResponse(html) {
     }
 }
 
-// =============================================================================
-// PHẦN BỔ SUNG: BÓC TÁCH IFRAME VÀ CÁC HÀM BẮT BUỘC KHÁC
-// =============================================================================
-
 function parseEmbedResponse(html, sourceUrl) {
     try {
         var streamUrl = "";
+        
+        // Tìm link m3u8 ẩn trong mã nguồn của trang iframe
         var m3u8Match = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
         if (m3u8Match) {
             streamUrl = m3u8Match[1].replace(/\\/g, "");
         }
 
+        // Nếu không có m3u8, thử tìm link mp4
         if (!streamUrl) {
             var mp4Match = html.match(/(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/i);
             if (mp4Match) {
@@ -307,7 +306,7 @@ function parseEmbedResponse(html, sourceUrl) {
         if (streamUrl) {
             return JSON.stringify({
                 url: streamUrl,
-                isEmbed: false,
+                isEmbed: false, // Tắt Embed, ép VAX đẩy thẳng link cho ExoPlayer
                 mimeType: streamUrl.indexOf(".m3u8") !== -1 ? "application/x-mpegURL" : "video/mp4",
                 headers: {
                     "Referer": sourceUrl,
@@ -323,6 +322,7 @@ function parseEmbedResponse(html, sourceUrl) {
     }
 }
 
+// CÁC HÀM BẮT BUỘC KHÁC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ"
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
