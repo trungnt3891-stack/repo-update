@@ -6,8 +6,8 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.0.5",
-        "baseUrl": "https://animehay09.site", // Có thể đổi thành animehay10.site, animehay11.site... nếu bị nhà mạng chặn
+        "version": "2.0.0",
+        "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/logo.png",
         "isEnabled": true,
         "isAdult": false,
@@ -19,27 +19,26 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'phim-moi-cap-nhat', title: 'Phim Mới Cập Nhật', type: 'Grid', path: '' },
-        { slug: 'anime-dang-chieu', title: 'Anime Đang Chiếu', type: 'Horizontal', path: '' },
-        { slug: 'anime-hoan-thanh', title: 'Anime Trọn Bộ', type: 'Horizontal', path: '' }
+        { slug: 'phim-moi-cap-nhat', title: 'Mới Cập Nhật', type: 'Grid', path: '' },
+        { slug: 'anime-dang-chieu', title: 'Đang Chiếu', type: 'Horizontal', path: '' },
+        { slug: 'anime-hoan-thanh', title: 'Trọn Bộ', type: 'Horizontal', path: '' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
         { name: 'Mới cập nhật', slug: 'phim-moi-cap-nhat' },
-        { name: 'Đang chiếu', slug: 'anime-dang-chieu' },
-        { name: 'Hoàn thành', slug: 'anime-hoan-thanh' },
+        { name: 'Anime', slug: 'the-loai/anime-1' },
         { name: 'Hành Động', slug: 'the-loai/hanh-dong-2' },
+        { name: 'Xuyên Không', slug: 'the-loai/xuyen-khong-37' },
+        { name: 'Harem', slug: 'the-loai/harem-5' },
         { name: 'Hài Hước', slug: 'the-loai/hai-huoc-3' },
         { name: 'Tình Cảm', slug: 'the-loai/tinh-cam-4' },
         { name: 'Viễn Tưởng', slug: 'the-loai/vien-tuong-33' },
         { name: 'Học Đường', slug: 'the-loai/hoc-duong-9' },
-        { name: 'Phiêu Lưu', slug: 'the-loai/phieu-luu-28' },
         { name: 'Kinh Dị', slug: 'the-loai/kinh-di-29' },
-        { name: 'Xuyên Không', slug: 'the-loai/xuyen-khong-37' },
-        { name: 'CN Animation', slug: 'the-loai/cn-animation-34' },
-        { name: 'Tiên Hiệp', slug: 'the-loai/tien-hiep-35' }
+        { name: 'Tiên Hiệp', slug: 'the-loai/tien-hiep-35' },
+        { name: 'CN Animation', slug: 'the-loai/cn-animation-34' }
     ]);
 }
 
@@ -56,15 +55,12 @@ function getUrlList(slug, filtersJson) {
     var page = filters.page || 1;
     var baseUrl = "https://animehay09.site";
     
-    // Trang chủ
     if (!slug || slug === '') {
-        return baseUrl + "/phim-moi-cap-nhat/trang-" + page + ".html";
+        slug = "phim-moi-cap-nhat";
     }
     
-    // Xử lý slug danh mục hoặc thể loại
-    if (slug.indexOf("the-loai") !== -1) {
-        return baseUrl + "/" + slug + "/trang-" + page + ".html"; // VD: /the-loai/hanh-dong-2.html -> .../hanh-dong-2/trang-1.html
-    }
+    // Đề phòng slug dính đuôi .html, ta xóa nó đi trước khi ghép trang
+    slug = slug.replace(".html", "");
     
     return baseUrl + "/" + slug + "/trang-" + page + ".html";
 }
@@ -81,7 +77,7 @@ function getUrlDetail(slug) {
     return "https://animehay09.site/" + slug;
 }
 
-function getUrlCategories() { return "https://animehay09.site/"; }
+function getUrlCategories() { return ""; }
 function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
@@ -104,45 +100,45 @@ var PluginUtils = {
 function parseListResponse(html) {
     var movies = [];
     
-    var itemRegex = /<div[^>]*class="[^"]*movie-item[^"]*"[^>]*>([\s\S]*?)<\/a>\s*<\/div>/gi;
+    // Cập nhật Regex theo cấu trúc mới: <a class="mc__link" ...
+    var itemRegex = /<a[^>]+class="[^"]*mc__link[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
     var match;
     
     while ((match = itemRegex.exec(html)) !== null) {
-        var innerHtml = match[1];
+        var fullUrl = match[1];
+        var innerHtml = match[2];
         
-        var linkMatch = innerHtml.match(/href="([^"]+)"/i);
-        if (!linkMatch) continue;
+        var slug = fullUrl.replace(/https?:\/\/[^\/]+\//, ""); 
         
-        var fullUrl = linkMatch[1];
-        var slug = fullUrl.replace(/https?:\/\/[^\/]+\//, "");
-        
-        var imgMatch = innerHtml.match(/<img[^>]+src="([^"]+)"/i);
+        var imgMatch = innerHtml.match(/<img[^>]+src="([^"]+)"/i) || innerHtml.match(/<img[^>]+data-src="([^"]+)"/i);
         var thumb = imgMatch ? imgMatch[1] : "";
         
-        var titleMatch = innerHtml.match(/<div[^>]*class="[^"]*name-movie[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-        var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]) : "Đang cập nhật";
+        var titleMatch = innerHtml.match(/class="[^"]*mc__name[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+        var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]) : "";
         
-        var epMatch = innerHtml.match(/<div[^>]*class="[^"]*episode-latest[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+        var epMatch = innerHtml.match(/class="[^"]*mc__ep-badge[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
         var episode = epMatch ? PluginUtils.cleanText(epMatch[1]) : "Full";
         
-        movies.push({
-            id: slug,
-            title: title,
-            posterUrl: thumb,
-            backdropUrl: thumb,
-            year: 0,
-            quality: "HD",
-            episode_current: episode,
-            lang: "Vietsub"
-        });
+        var scoreMatch = innerHtml.match(/class="[^"]*mc__score[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+        var score = scoreMatch ? PluginUtils.cleanText(scoreMatch[1]) : "HD";
+        
+        if (title && slug) {
+            movies.push({
+                id: slug,
+                title: title,
+                posterUrl: thumb,
+                backdropUrl: thumb,
+                year: 0,
+                quality: score, // Dùng field quality để hiển thị điểm số (⭐ 8.9) lên góc ảnh
+                episode_current: episode,
+                lang: "Vietsub"
+            });
+        }
     }
 
-    // Xử lý phân trang
+    // Xử lý đếm số trang
     var totalPages = 1;
     var currentPage = 1;
-    
-    var currentMatch = html.match(/<li[^>]*class="[^"]*active[^"]*"[^>]*>\s*<a[^>]*>(\d+)<\/a>/i);
-    if (currentMatch) currentPage = parseInt(currentMatch[1]);
     
     var pageRegex = /trang-(\d+)\.html/g;
     var pageMatch;
@@ -155,7 +151,7 @@ function parseListResponse(html) {
         items: movies,
         pagination: {
             currentPage: currentPage,
-            totalPages: totalPages,
+            totalPages: totalPages > 0 ? totalPages : 1,
             totalItems: movies.length,
             itemsPerPage: 20
         }
@@ -168,32 +164,40 @@ function parseSearchResponse(html) {
 
 function parseMovieDetail(html) {
     try {
-        // Lấy thông tin Metadata
-        var titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i) || html.match(/<title>([^<]+)<\/title>/i);
+        var titleMatch = html.match(/<h1[^>]*class="[^"]*aim-hero__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<meta property="og:title" content="([^"]+)"/i);
         var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]).replace(/ \|\| AnimeHay/g, "").replace(/Phim /g, "") : "";
 
-        var imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+        var imgMatch = html.match(/<img[^>]+id="aim-poster-img"[^>]+src="([^"]+)"/i) || html.match(/<meta property="og:image" content="([^"]+)"/i);
         var poster = imgMatch ? imgMatch[1] : "";
 
-        var descMatch = html.match(/<meta property="og:description" content="([^"]+)"/i) || html.match(/<meta name="description" content="([^"]+)"/i);
+        var descMatch = html.match(/<div[^>]*class="[^"]*aim-desc__content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || html.match(/<meta property="og:description" content="([^"]+)"/i);
         var description = descMatch ? PluginUtils.cleanText(descMatch[1]) : "";
 
-        // Bóc tách Danh sách Tập (Quét cả giao diện Xem Phim wp-ep lẫn giao diện aim-ep-btn)
         var episodes = [];
-        var seenEps = {}; 
+        var seenEps = {};
         
+        // Quét các nút tập phim (aim-ep-btn ở trang thông tin HOẶC wp-ep ở trang xem)
         var epRegex = /<a[^>]+href="([^"]+)"[^>]*class="[^"]*(?:wp-ep|aim-ep-btn)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
         var epM;
         
         while ((epM = epRegex.exec(html)) !== null) {
             var epUrl = epM[1];
-            var epDisplay = PluginUtils.cleanText(epM[2]);
+            var rawInner = epM[2];
+            
+            // Ưu tiên lấy chữ trong thẻ title="Tập 357", nếu không có thì lấy số bên trong HTML
+            var epTitleMatch = epM[0].match(/title="([^"]+)"/i);
+            var epDisplay = epTitleMatch ? PluginUtils.cleanText(epTitleMatch[1]) : PluginUtils.cleanText(rawInner);
+            
+            if (epDisplay.indexOf("Tập") === -1) {
+                epDisplay = "Tập " + epDisplay;
+            }
+
             var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//, "");
 
             if (!seenEps[epSlug]) {
                 episodes.push({
                     id: epSlug,
-                    name: "Tập " + epDisplay,
+                    name: epDisplay,
                     slug: epSlug
                 });
                 seenEps[epSlug] = true;
@@ -201,11 +205,14 @@ function parseMovieDetail(html) {
         }
 
         if (episodes.length > 0) {
-            episodes.reverse();
-        }
-
-        var servers = [];
-        if (episodes.length > 0) {
+            // Kiểm tra thông minh: Nếu web xếp Tập mới nhất (số to) lên trên cùng, ta đảo ngược nó lại cho đúng chuẩn
+            var firstEpName = episodes[0].name.replace(/\D/g,'');
+            var lastEpName = episodes[episodes.length - 1].name.replace(/\D/g,'');
+            if (firstEpName && lastEpName && parseInt(firstEpName) > parseInt(lastEpName)) {
+                episodes.reverse();
+            }
+            
+            var servers = [];
             servers.push({ name: "Server AnimeHay", episodes: episodes });
         }
 
@@ -215,7 +222,7 @@ function parseMovieDetail(html) {
             posterUrl: poster,
             backdropUrl: poster,
             description: description,
-            servers: servers,
+            servers: servers || [],
             quality: "HD",
             lang: "Vietsub",
             year: 0,
@@ -232,15 +239,22 @@ function parseDetailResponse(html) {
     try {
         var streamUrl = "";
 
-        // Trích xuất mảng biến $wp_servers được giấu trong thẻ Script
+        // Trích xuất mảng biến $wp_servers được giấu trong thẻ Script (chứa link m3u8 / iframe vip)
         var svMatch = html.match(/\$wp_servers\s*=\s*(\{[\s\S]*?\});/);
         if (svMatch) {
-            var linkMatch = svMatch[1].match(/['"](https?:\/\/[^'"]+)['"]/);
-            if (linkMatch) {
-                streamUrl = linkMatch[1];
+            var linkRegex = /['"](https?:\/\/[^'"]+)['"]/g;
+            var lMatch;
+            var links = [];
+            while ((lMatch = linkRegex.exec(svMatch[1])) !== null) {
+                links.push(lMatch[1]);
+            }
+            // Lấy link máy chủ đầu tiên
+            if (links.length > 0) {
+                streamUrl = links[0];
             }
         }
 
+        // Nếu kịch bản trên thất bại, lấy iframe lộ thiên trên web
         if (!streamUrl) {
             var iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
             if (iframeMatch) {
@@ -253,7 +267,7 @@ function parseDetailResponse(html) {
             return JSON.stringify({
                 url: streamUrl,
                 headers: { "Referer": "https://animehay09.site/" },
-                isEmbed: true 
+                isEmbed: true  // Cho App biết đây là link iframe để App gọi WebView xử lý
             });
         }
         
@@ -262,7 +276,3 @@ function parseDetailResponse(html) {
         return "{}";
     }
 }
-
-function parseCategoriesResponse(html) { return "[]"; }
-function parseCountriesResponse(html) { return "[]"; }
-function parseYearsResponse(html) { return "[]"; }
