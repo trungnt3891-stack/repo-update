@@ -284,3 +284,45 @@ function parseDetailResponse(html) {
         return "{}";
     }
 }
+
+// =============================================================================
+// PHẦN BỔ SUNG: BÓC TÁCH IFRAME VÀ CÁC HÀM BẮT BUỘC KHÁC
+// =============================================================================
+
+function parseEmbedResponse(html, sourceUrl) {
+    try {
+        var streamUrl = "";
+        var m3u8Match = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
+        if (m3u8Match) {
+            streamUrl = m3u8Match[1].replace(/\\/g, "");
+        }
+
+        if (!streamUrl) {
+            var mp4Match = html.match(/(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/i);
+            if (mp4Match) {
+                streamUrl = mp4Match[1].replace(/\\/g, "");
+            }
+        }
+
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                isEmbed: false,
+                mimeType: streamUrl.indexOf(".m3u8") !== -1 ? "application/x-mpegURL" : "video/mp4",
+                headers: {
+                    "Referer": sourceUrl,
+                    "Origin": sourceUrl.split('/').slice(0, 3).join('/'),
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+            });
+        }
+
+        return JSON.stringify({ url: "", isEmbed: false });
+    } catch (e) {
+        return JSON.stringify({ url: "", isEmbed: false });
+    }
+}
+
+function parseCategoriesResponse(html) { return "[]"; }
+function parseCountriesResponse(html) { return "[]"; }
+function parseYearsResponse(html) { return "[]"; }
