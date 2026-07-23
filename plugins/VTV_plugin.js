@@ -6,12 +6,12 @@ function getManifest() {
     return JSON.stringify({
         "id": "tinhlagitv",
         "name": "Tinhlagi TV",
-        "version": "2.0.0",
+        "version": "1.0.5", // Nâng version để App xóa bộ nhớ đệm
         "baseUrl": "https://tinhlagi.pro/tivi",
         "iconUrl": "https://tinhlagi.pro/tinhlagi.ico",
         "isEnabled": true,
         "isAdult": false,
-        "type": "MOVIE",
+        "type": "MOVIE", 
         "layoutType": "VERTICAL",
         "playerType": "auto"
     });
@@ -19,13 +19,13 @@ function getManifest() {
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'danh-sach', title: 'Tất Cả Kênh Tivi', type: 'Grid', path: '' }
+        { slug: 'truyen-hinh', title: 'Danh Mục Kênh Truyền Hình', type: 'Grid', path: '' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'Kênh Truyền Hình', slug: 'danh-sach' }
+        { name: 'Tất Cả', slug: 'truyen-hinh' }
     ]);
 }
 
@@ -36,7 +36,6 @@ function getFilterConfig() { return JSON.stringify({}); }
 // =============================================================================
 
 function getUrlList(slug, filtersJson) {
-    // Tải toàn bộ danh sách kênh từ trang Tivi
     return "https://tinhlagi.pro/tivi";
 }
 
@@ -45,22 +44,7 @@ function getUrlSearch(keyword, filtersJson) {
 }
 
 function getUrlDetail(slug) {
-    if (!slug) return "";
-    
-    // Nếu là luồng bắt link trực tiếp để lấy Headers
-    if (slug.indexOf("direct|") === 0) {
-        var streamUrl = slug.split("direct|")[1];
-        // Tạo URL ảo để server Tinhlagi nhét streamUrl vào biến window.tiviPlayUrl
-        return "https://tinhlagi.pro/tivi?url=" + encodeURIComponent(streamUrl) + "&name=Live";
-    }
-    
-    // Nếu là click từ danh sách kênh ngoài trang chủ
-    if (slug.indexOf("?url=") === 0) {
-        return "https://tinhlagi.pro/tivi" + slug;
-    }
-    
-    if (slug.indexOf("http") === 0) return slug;
-    return "https://tinhlagi.pro/" + slug.replace(/^\//, "");
+    return "https://tinhlagi.pro/tivi";
 }
 
 function getUrlCategories() { return ""; }
@@ -83,101 +67,108 @@ var PluginUtils = {
     }
 };
 
-// Hàm này sẽ San Phẳng mọi thứ: Lấy trực tiếp Logo và Tên kênh in ra danh sách
 function parseListResponse(html) {
-    try {
-        var movies = [];
-        // Chỉ lấy các nhóm kênh bạn đã chỉ định
-        var requiredGroups = ["VTVcab", "VTV", "SCTV", "HTVC", "HTV", "Địa phương", "Thiết yếu"];
-        
-        var groupBlocks = html.split(/<h2[^>]*class=["'][^"']*group-title[^"']*["'][^>]*>/i);
-        
-        for (var i = 1; i < groupBlocks.length; i++) {
-            var block = groupBlocks[i];
-            var titleEnd = block.indexOf('</h2>');
-            if (titleEnd === -1) continue;
-            
-            var groupName = PluginUtils.cleanText(block.substring(0, titleEnd)).split('(')[0].trim();
-            
-            var isRequired = false;
-            for (var j = 0; j < requiredGroups.length; j++) {
-                if (groupName.indexOf(requiredGroups[j]) !== -1) {
-                    isRequired = true;
-                    groupName = requiredGroups[j];
-                    break;
-                }
-            }
-            if (!isRequired) continue;
+    var groups = [
+        { id: "VTV", name: "Kênh VTV", img: "https://raw.githubusercontent.com/vuminhthanh12/Logo/refs/heads/main/VTV6.png" },
+        { id: "VTVcab", name: "Kênh VTVcab", img: "https://raw.githubusercontent.com/vuminhthanh12/Logo/refs/heads/main/ONPHIMVIET.png" },
+        { id: "SCTV", name: "Kênh SCTV", img: "https://raw.githubusercontent.com/vuminhthanh12/vuminhthanh12/refs/heads/main/sctv1.png" },
+        { id: "HTV", name: "Kênh HTV", img: "https://s7771.cdn.mytvnet.vn/vimages/8c/ce/ee/e7/79/98/8cee7-phtv1hd-channel-unkn.png" },
+        { id: "HTVC", name: "Kênh HTVC", img: "https://raw.githubusercontent.com/vuminhthanh12/Logo/refs/heads/main/htvcthuanviet.png" },
+        { id: "Địa phương", name: "Kênh Địa Phương", img: "https://upload.wikimedia.org/wikipedia/vi/9/90/THP-Logo.png" },
+        { id: "Thiết yếu", name: "Kênh Thiết Yếu", img: "https://i.ytimg.com/vi/sFLUmdwp0Z8/maxresdefault.jpg" }
+    ];
 
-            // Bóc tách từng kênh trong nhóm hợp lệ
-            var channelParts = block.split(/<a /i);
-            for (var k = 1; k < channelParts.length; k++) {
-                var cp = channelParts[k];
-                var urlM = cp.match(/href=["'](\?url=[^"']+)["']/i);
-                var imgM = cp.match(/<img[^>]+src=["']([^"']+)["']/i);
-                
-                if (urlM && imgM) {
-                    var rawSlug = urlM[1];
-                    var cleanSlug = rawSlug.split('#')[0]; // Dọn dẹp thẻ mỏ neo rác
-                    
-                    var nameM = cleanSlug.match(/&name=([^&]+)/i);
-                    var channelName = nameM ? decodeURIComponent(nameM[1]).replace(/\+/g, " ") : "Kênh Tivi";
-                    
-                    movies.push({
-                        id: cleanSlug,
-                        title: "[" + groupName + "] " + channelName,
-                        posterUrl: imgM[1],
-                        backdropUrl: imgM[1],
-                        quality: "LIVE",
-                        episode_current: "Trực Tiếp",
-                        lang: "Viet",
-                        year: 0
-                    });
-                }
-            }
-        }
-        
-        return JSON.stringify({
-            items: movies,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: movies.length, itemsPerPage: 500 }
+    var items = [];
+    for (var i = 0; i < groups.length; i++) {
+        items.push({
+            id: groups[i].id, 
+            title: groups[i].name,
+            posterUrl: groups[i].img,
+            backdropUrl: groups[i].img,
+            quality: "HD",
+            episode_current: "Live",
+            lang: "Viet",
+            year: 0
         });
-    } catch (e) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
+
+    return JSON.stringify({
+        items: items,
+        pagination: { currentPage: 1, totalPages: 1, totalItems: items.length, itemsPerPage: 10 }
+    });
 }
 
 function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
-// Hàm này thiết kế giao diện bên trong của 1 kênh (Chỉ có tên kênh và 1 nút Bấm Để Xem)
 function parseMovieDetail(html) {
     try {
-        var titleMatch = html.match(/<h2[^>]*class=["']now-playing["'][^>]*>📺\s*([^<]+)<\/h2>/i);
-        var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]) : "Kênh Tivi";
+        var requiredGroups = ["VTVcab", "VTV", "SCTV", "HTVC", "HTV", "Địa phương", "Thiết yếu"];
+        var servers = [];
 
-        var streamUrl = "";
-        var urlMatch = html.match(/tiviPlayUrl\s*=\s*['"]([^'"]+)['"]/i);
-        if (urlMatch) {
-            streamUrl = urlMatch[1].replace(/\\/g, "");
-        }
+        var groupBlocks = html.split(/<h2[^>]*class=["'][^"']*group-title[^"']*["'][^>]*>/i);
+        
+        for (var i = 1; i < groupBlocks.length; i++) {
+            var block = groupBlocks[i];
+            
+            var titleEnd = block.indexOf('</h2>');
+            if (titleEnd === -1) continue;
+            
+            // Xử lý tên nhóm kênh: Bỏ phần số lượng "(13)", xóa các ký tự lạ như "🌐|"
+            var rawTitle = block.substring(0, titleEnd);
+            var cleanTitle = PluginUtils.cleanText(rawTitle).split('(')[0];
+            var groupName = cleanTitle.replace(/[^\w\sđĐ]/gi, '').trim(); 
+            
+            // So khớp CHÍNH XÁC tên nhóm kênh để tránh lặp (HTV không được dính vào HTVC)
+            var isRequired = false;
+            var matchedGroupName = "";
+            for (var j = 0; j < requiredGroups.length; j++) {
+                if (groupName.toLowerCase() === requiredGroups[j].toLowerCase()) {
+                    isRequired = true;
+                    matchedGroupName = requiredGroups[j]; 
+                    break;
+                }
+            }
+            if (!isRequired) continue;
 
-        var episodes = [];
-        if (streamUrl) {
-            episodes.push({
-                id: "direct|" + streamUrl, // Dấu hiệu để App chuyển sang getUrlDetail và lấy Header
-                name: "Xem Trực Tiếp",
-                slug: "live"
-            });
+            var episodes = [];
+            var seenEps = {};
+            
+            // DÙNG REGEX QUÉT TRỰC TIẾP URL: Tuyệt đối không bỏ sót VTV1, HTV1
+            var channelRegex = /href=["']\?url=([^&"']+)&(?:amp;)?name=([^#"']+)[^"']*["']/gi;
+            var match;
+            
+            while ((match = channelRegex.exec(block)) !== null) {
+                var streamLink = decodeURIComponent(match[1]); 
+                var channelName = decodeURIComponent(match[2]).replace(/\+/g, " ").trim();
+                
+                // Tránh lỗi lặp lại kênh do web in trùng
+                if (!seenEps[streamLink]) {
+                    episodes.push({
+                        id: streamLink, 
+                        name: channelName,
+                        slug: "live-channel"
+                    });
+                    seenEps[streamLink] = true;
+                }
+            }
+
+            if (episodes.length > 0) {
+                servers.push({
+                    name: "Kênh " + matchedGroupName,
+                    episodes: episodes
+                });
+            }
         }
 
         return JSON.stringify({
             id: "",
-            title: title,
+            title: "Tivi Trực Tuyến",
             posterUrl: "https://tinhlagi.pro/tinhlagi.ico",
             backdropUrl: "https://tinhlagi.pro/tinhlagi.ico",
-            description: "Đang phát sóng trực tiếp kênh " + title + " trên máy chủ tốc độ cao.",
-            servers: episodes.length > 0 ? [{ name: "Máy chủ Tivi", episodes: episodes }] : [],
+            description: "Hệ thống Xem Tivi trực tuyến tốc độ cao. Hãy chọn danh sách kênh (Server) ở bên dưới.",
+            servers: servers,
             quality: "LIVE",
             lang: "Viet",
             year: 0,
@@ -186,50 +177,19 @@ function parseMovieDetail(html) {
             status: "Đang phát sóng"
         });
     } catch (e) {
-        return "null";
+        return JSON.stringify({});
     }
 }
 
-// Bóc tách URL luồng phát và Header chống chặn FPTPlay/VieON
 function parseDetailResponse(html) {
-    try {
-        var streamUrl = "";
-        var headers = {
-            "Referer": "https://tinhlagi.pro/",
-            "Origin": "https://tinhlagi.pro",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        };
-
-        var urlMatch = html.match(/tiviPlayUrl\s*=\s*['"]([^'"]+)['"]/i);
-        if (urlMatch) {
-            streamUrl = urlMatch[1].replace(/\\/g, "");
-        }
-
-        var uaMatch = html.match(/tiviUA\s*=\s*['"]([^'"]+)['"]/i);
-        if (uaMatch) {
-            headers["User-Agent"] = uaMatch[1];
-        }
-
-        if (streamUrl) {
-            return JSON.stringify({
-                url: streamUrl,
-                headers: headers,
-                isEmbed: false // Phóng thẳng m3u8 vào Trình Phát Video
-            });
-        }
-        return JSON.stringify({});
-    } catch (e) {
-        return JSON.stringify({});
-    }
+    return JSON.stringify({}); 
 }
 
 function parseEmbedResponse(html, sourceUrl) {
     return JSON.stringify({ url: "", isEmbed: false });
 }
 
-// =============================================================================
-// CÁC HÀM BẮT BUỘC KHÁC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ" TRÊN TIVI
-// =============================================================================
+// CÁC HÀM BẮT BUỘC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ"
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
