@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "tinhlagitv",
         "name": "Tinhlagi TV",
-        "version": "1.0.5", // Nâng version để App xóa bộ nhớ đệm
+        "version": "1.0.6", // Nâng version để App xóa bộ nhớ đệm
         "baseUrl": "https://tinhlagi.pro/tivi",
         "iconUrl": "https://tinhlagi.pro/tinhlagi.ico",
         "isEnabled": true,
@@ -115,16 +115,13 @@ function parseMovieDetail(html) {
             var titleEnd = block.indexOf('</h2>');
             if (titleEnd === -1) continue;
             
-            // Xử lý tên nhóm kênh: Bỏ phần số lượng "(13)", xóa các ký tự lạ như "🌐|"
             var rawTitle = block.substring(0, titleEnd);
-            var cleanTitle = PluginUtils.cleanText(rawTitle).split('(')[0];
-            var groupName = cleanTitle.replace(/[^\w\sđĐ]/gi, '').trim(); 
             
-            // So khớp CHÍNH XÁC tên nhóm kênh để tránh lặp (HTV không được dính vào HTVC)
+            // So khớp tên nhóm kênh không cần dùng Regex để bảo toàn tiếng Việt
             var isRequired = false;
             var matchedGroupName = "";
             for (var j = 0; j < requiredGroups.length; j++) {
-                if (groupName.toLowerCase() === requiredGroups[j].toLowerCase()) {
+                if (rawTitle.indexOf(requiredGroups[j]) !== -1) {
                     isRequired = true;
                     matchedGroupName = requiredGroups[j]; 
                     break;
@@ -135,7 +132,6 @@ function parseMovieDetail(html) {
             var episodes = [];
             var seenEps = {};
             
-            // DÙNG REGEX QUÉT TRỰC TIẾP URL: Tuyệt đối không bỏ sót VTV1, HTV1
             var channelRegex = /href=["']\?url=([^&"']+)&(?:amp;)?name=([^#"']+)[^"']*["']/gi;
             var match;
             
@@ -143,7 +139,6 @@ function parseMovieDetail(html) {
                 var streamLink = decodeURIComponent(match[1]); 
                 var channelName = decodeURIComponent(match[2]).replace(/\+/g, " ").trim();
                 
-                // Tránh lỗi lặp lại kênh do web in trùng
                 if (!seenEps[streamLink]) {
                     episodes.push({
                         id: streamLink, 
