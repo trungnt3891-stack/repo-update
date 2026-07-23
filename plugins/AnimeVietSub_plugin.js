@@ -1,15 +1,19 @@
+// =============================================================================
+// CONFIGURATION & METADATA
+// =============================================================================
+
 function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.0.0",
-        "baseUrl": "https://animehay09.site",
+        "version": "4.0.0",
+        "baseUrl": "https://animehay09.site", 
         "iconUrl": "https://animehay09.site/themes/img/logo.png",
         "isEnabled": true,
         "isAdult": false,
         "type": "MOVIE",
         "layoutType": "VERTICAL",
-        "playerType": "auto"
+        "playerType": "auto" 
     });
 }
 
@@ -37,22 +41,26 @@ function getPrimaryCategories() {
     ]);
 }
 
-function getFilterConfig() {
-    return JSON.stringify({});
-}
+function getFilterConfig() { return JSON.stringify({}); }
+
+// =============================================================================
+// URL GENERATION
+// =============================================================================
 
 function getUrlList(slug, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
     var baseUrl = "https://animehay09.site";
     
-    if (!slug || slug === "") slug = "phim-moi-cap-nhap/tat-ca";
+    if (!slug) slug = "phim-moi-cap-nhap/tat-ca";
     slug = slug.replace(/\.html$/i, "");
     
+    // Đối với trang chủ "Mới cập nhật" cấu trúc là: /phim-moi-cap-nhap/tat-ca-1.html
     if (slug === "phim-moi-cap-nhap/tat-ca") {
         return baseUrl + "/" + slug + "-" + page + ".html";
     }
     
+    // Đối với thể loại: Trang 1 không có "trang-1", từ trang 2 trở đi mới có
     if (page === 1) {
         return baseUrl + "/" + slug + ".html";
     } else {
@@ -76,6 +84,10 @@ function getUrlCategories() { return ""; }
 function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
+// =============================================================================
+// PARSERS
+// =============================================================================
+
 var PluginUtils = {
     cleanText: function (text) {
         if (!text) return "";
@@ -89,60 +101,54 @@ var PluginUtils = {
 };
 
 function parseListResponse(html) {
-    try {
-        var movies = [];
-        var parts = html.split('class="mc"');
+    var movies = [];
+    
+    // Chặt HTML theo class mc để lấy từng bộ phim, cách này an toàn hơn Regex dài
+    var parts = html.split(/class=["'](?:mc|movie-item)["']/i);
+    
+    for (var i = 1; i < parts.length; i++) {
+        var p = parts[i];
         
-        for (var i = 1; i < parts.length; i++) {
-            var p = parts[i];
-            
-            var endA = p.indexOf('</a>');
-            if (endA !== -1) p = p.substring(0, endA);
-            
-            var urlM = p.match(/href=["']([^"']+)["']/i);
-            var titleM = p.match(/class=["'][^"']*mc__name[^"']*["'][^>]*>([^<]+)</i);
-            var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
-            var epM = p.match(/class=["'][^"']*mc__ep-badge[^"']*["'][^>]*>([^<]+)</i);
-            var scoreM = p.match(/class=["'][^"']*mc__score[^"']*["'][^>]*>([^<]+)</i);
+        var urlM = p.match(/href=["']([^"']+)["']/i);
+        var titleM = p.match(/class=["'][^"']*(?:mc__name|name-movie)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+        var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i);
+        var epM = p.match(/class=["'][^"']*(?:mc__ep-badge|episode-latest)[^"']*["'][^>]*>([\s\S]*?)<\//i);
+        var scoreM = p.match(/class=["'][^"']*(?:mc__score|score)[^"']*["'][^>]*>([\s\S]*?)<\//i);
 
-            if (urlM && titleM && imgM) {
-                var url = urlM[1];
-                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                
-                if (slug.indexOf('xem-phim') !== -1) continue;
-                
-                movies.push({
-                    id: slug,
-                    title: PluginUtils.cleanText(titleM[1]),
-                    posterUrl: imgM[1],
-                    backdropUrl: imgM[1],
-                    quality: scoreM ? PluginUtils.cleanText(scoreM[1]) : "HD",
-                    episode_current: epM ? PluginUtils.cleanText(epM[1]) : "Full",
-                    lang: "Vietsub",
-                    year: 0
-                });
-            }
+        if (urlM && titleM && imgM) {
+            var url = urlM[1];
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            // Loại bỏ các link vô tình trỏ thẳng vào tập phim
+            if (slug.indexOf('xem-phim') !== -1) continue;
+            
+            movies.push({
+                id: slug,
+                title: PluginUtils.cleanText(titleM[1]),
+                posterUrl: imgM[1],
+                backdropUrl: imgM[1],
+                quality: scoreM ? PluginUtils.cleanText(scoreM[1]) : "HD",
+                episode_current: epM ? PluginUtils.cleanText(epM[1]) : "Full",
+                lang: "Vietsub",
+                year: 0
+            });
         }
-
-        var totalPages = 100;
-        var currentPage = 1;
-        var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
-        if (currentMatch) {
-            currentPage = parseInt(currentMatch[1], 10);
-        }
-        
-        return JSON.stringify({
-            items: movies,
-            pagination: {
-                currentPage: currentPage,
-                totalPages: totalPages,
-                totalItems: 9999,
-                itemsPerPage: 20
-            }
-        });
-    } catch (e) {
-        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
+
+    var totalPages = 100; // Cho cuộn thoải mái
+    var currentPage = 1;
+    var currentMatch = html.match(/class=["'][^"']*active[^"']*["'][^>]*>\s*<a[^>]*>(\d+)/i);
+    if (currentMatch) currentPage = parseInt(currentMatch[1]);
+    
+    return JSON.stringify({
+        items: movies,
+        pagination: {
+            currentPage: currentPage,
+            totalPages: totalPages,
+            totalItems: 9999,
+            itemsPerPage: 20
+        }
+    });
 }
 
 function parseSearchResponse(html) {
@@ -158,22 +164,22 @@ function parseMovieDetail(html) {
         var title = titleM ? PluginUtils.cleanText(titleM[1]) : "";
         title = title.replace(/\|\| AnimeHay/gi, "").trim();
         var tapIdx = title.lastIndexOf(" Tập");
-        if (tapIdx > 0) title = title.substring(0, tapIdx);
+        if (tapIdx > 0) title = title.substring(0, tapIdx); // Cắt bỏ chữ " Tập 358" ra khỏi tên phim
         title = title.replace(/^Phim /gi, "").trim();
 
         var poster = posterM ? posterM[1] : "";
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "";
 
+        // BƯỚC QUAN TRỌNG: Cắt gọn HTML, CHỈ giữ lại khu vực chứa danh sách tập. 
+        // Tránh tình trạng ăn vạ sang phần "Phim Tương Tự".
         var epBlock = "";
         var aimIdx = html.indexOf('aim-episodes');
         if (aimIdx !== -1) {
-            var aimEnd = html.indexOf('aim-desc', aimIdx);
-            epBlock = html.substring(aimIdx, aimEnd !== -1 ? aimEnd : html.length);
+            epBlock = html.substring(aimIdx, html.indexOf('aim-desc', aimIdx) !== -1 ? html.indexOf('aim-desc', aimIdx) : html.length);
         } else {
             var wpIdx = html.indexOf('wp-eplist');
             if (wpIdx !== -1) {
-                var wpEnd = html.indexOf('wp-comments-block', wpIdx);
-                epBlock = html.substring(wpIdx, wpEnd !== -1 ? wpEnd : html.length);
+                epBlock = html.substring(wpIdx, html.indexOf('wp-comments-block', wpIdx) !== -1 ? html.indexOf('wp-comments-block', wpIdx) : html.length);
             }
         }
 
@@ -206,23 +212,23 @@ function parseMovieDetail(html) {
             }
         }
 
+        // Nếu phim lẻ không có list tập, tìm nút "Xem ngay"
         if (episodes.length === 0) {
             var watchBtn = html.match(/href=["']([^"']+)["'][^>]*class=["'][^"']*aim-btn-watch/i);
             if (watchBtn && watchBtn[1].indexOf('xem-phim') !== -1) {
-                var wSlug = watchBtn[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                episodes.push({id: wSlug, name: "Xem Ngay", slug: wSlug});
+                var epSlug = watchBtn[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                episodes.push({id: epSlug, name: "Xem Ngay", slug: epSlug});
             }
         }
 
+        // Sắp xếp tập 1 lên đầu
         if (episodes.length > 1) {
             var fM = episodes[0].name.match(/\d+/);
             var lM = episodes[episodes.length-1].name.match(/\d+/);
-            if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
+            if (fM && lM && parseInt(fM[0]) > parseInt(lM[0])) {
                 episodes.reverse();
             }
         }
-
-        var servers = episodes.length > 0 ? [{ name: "Server AnimeHay", episodes: episodes }] : [];
 
         return JSON.stringify({
             id: "",
@@ -230,7 +236,7 @@ function parseMovieDetail(html) {
             posterUrl: poster,
             backdropUrl: poster,
             description: desc,
-            servers: servers,
+            servers: episodes.length > 0 ? [{ name: "Server AnimeHay", episodes: episodes }] : [],
             quality: "HD",
             lang: "Vietsub",
             year: 0,
@@ -239,7 +245,7 @@ function parseMovieDetail(html) {
             status: episodes.length > 0 ? episodes.length + " Tập" : "Đang cập nhật"
         });
     } catch (e) {
-        return JSON.stringify({});
+        return "null";
     }
 }
 
@@ -273,46 +279,8 @@ function parseDetailResponse(html) {
                 isEmbed: true 
             });
         }
-        return JSON.stringify({});
+        return "{}";
     } catch (e) {
-        return JSON.stringify({});
+        return "{}";
     }
 }
-
-function parseEmbedResponse(html, sourceUrl) {
-    try {
-        var streamUrl = "";
-        var m3u8Match = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
-        if (m3u8Match) {
-            streamUrl = m3u8Match[1].replace(/\\/g, "");
-        }
-
-        if (!streamUrl) {
-            var mp4Match = html.match(/(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/i);
-            if (mp4Match) {
-                streamUrl = mp4Match[1].replace(/\\/g, "");
-            }
-        }
-
-        if (streamUrl) {
-            return JSON.stringify({
-                url: streamUrl,
-                isEmbed: false,
-                mimeType: streamUrl.indexOf(".m3u8") !== -1 ? "application/x-mpegURL" : "video/mp4",
-                headers: {
-                    "Referer": sourceUrl,
-                    "Origin": sourceUrl.split('/').slice(0, 3).join('/'),
-                    "User-Agent": "Mozilla/5.0"
-                }
-            });
-        }
-
-        return JSON.stringify({ url: "", isEmbed: false });
-    } catch (e) {
-        return JSON.stringify({ url: "", isEmbed: false });
-    }
-}
-
-function parseCategoriesResponse(html) { return "[]"; }
-function parseCountriesResponse(html) { return "[]"; }
-function parseYearsResponse(html) { return "[]"; }
