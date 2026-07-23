@@ -4,54 +4,50 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "tv365-vietng",
-        "name": "TV365 & VietNG",
-        "version": "1.0.1",
-        "baseUrl": "https://raw.githubusercontent.com/trungnt3891-stack/test/refs/heads/main/new.m3u",
-        "iconUrl": "https://raw.githubusercontent.com/vietng228/m3u/refs/heads/main/Logo.png",
+        "id": "tinhlagitv",
+        "name": "Tinhlagi TV",
+        "version": "1.0.0",
+        "baseUrl": "https://tinhlagi.pro",
+        "iconUrl": "https://tinhlagi.pro/favicon.ico",
         "isEnabled": true,
-        "type": "VIDEO",
-        "layoutType": "HORIZONTAL",
-        "playerType": "exoplayer"
+        "isAdult": false,
+        "type": "MOVIE", // Bắt buộc dùng MOVIE để kích hoạt Video Player
+        "layoutType": "VERTICAL",
+        "playerType": "auto"
     });
 }
 
 function getHomeSections() {
     return JSON.stringify([
-        { slug: 'truyen-hinh', title: '📺 Truyền Hình', type: 'Grid', path: 'tv365-vietng' }
+        { slug: 'tivi', title: 'Tất Cả Kênh Tivi', type: 'Grid', path: '' }
     ]);
 }
 
 function getPrimaryCategories() {
     return JSON.stringify([
-        { name: 'Truyền Hình', slug: 'truyen-hinh' }
+        { name: 'Tất cả kênh', slug: 'tivi' }
     ]);
 }
 
-function getFilterConfig() {
-    return JSON.stringify({});
-}
+function getFilterConfig() { return JSON.stringify({}); }
 
 // =============================================================================
 // URL GENERATION
 // =============================================================================
 
-var M3U_URL = "https://raw.githubusercontent.com/trungnt3891-stack/test/refs/heads/main/new.m3u";
-// Link dự phòng nếu cần: "https://raw.githubusercontent.com/TV365-VN/TV365-DATA/refs/heads/main/error.m3u"
-
 function getUrlList(slug, filtersJson) {
-    return M3U_URL; // Luôn trả về 1 list duy nhất không cần query category
+    // Web load toàn bộ kênh trên trang /tivi/
+    return "https://tinhlagi.pro/tivi/";
 }
 
 function getUrlSearch(keyword, filtersJson) {
-    return M3U_URL + "?search=" + encodeURIComponent(keyword);
+    return "https://tinhlagi.pro/tivi/?q=" + encodeURIComponent(keyword);
 }
 
 function getUrlDetail(slug) {
-    if (slug.indexOf("http") === 0) {
-        return slug;
-    }
-    return M3U_URL + "?id=" + encodeURIComponent(slug);
+    if (!slug) return "";
+    if (slug.indexOf("http") === 0) return slug;
+    return "https://tinhlagi.pro/" + slug.replace(/^\//, "");
 }
 
 function getUrlCategories() { return ""; }
@@ -59,233 +55,154 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// M3U PARSER
+// PARSERS (BÓC TÁCH DỮ LIỆU)
 // =============================================================================
 
-function parseM3U(text) {
-    var lines = text.split('\n');
-    var channels = [];
-    var currentInfo = null;
-    var currentUserAgent = '';
-    var channelIndex = 0;
+var PluginUtils = {
+    cleanText: function (text) {
+        if (!text) return "";
+        return text.replace(/<[^>]*>/g, "")
+            .replace(/&amp;/g, "&")
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+};
 
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
+function parseListResponse(html) {
+    try {
+        var channels = [];
+        var seen = {};
+        
+        // Cắt HTML bằng thẻ <a> để lấy tất cả các link trên trang
+        var parts = html.split('<a ');
+        
+        for (var i = 1; i < parts.length; i++) {
+            var p = parts[i];
+            
+            // Lọc ra các link thuộc khu vực tivi
+            var hrefM = p.match(/href=["']([^"']*(?:\/tivi\/|\?url=)[^"']*)["']/i);
+            var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
 
-        if (line.indexOf('#EXTINF:') === 0) {
-            var groupMatch = line.match(/group-title="([^"]*)"/);
-            var logoMatch = line.match(/tvg-logo="([^"]*)"/);
-            var tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
+            if (hrefM && imgM) {
+                var url = hrefM[1];
+                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                
+                // Trích xuất Tên Kênh
+                var rawText = p.substring(p.indexOf('>'), p.indexOf('</a>') !== -1 ? p.indexOf('</a>') : p.length);
+                var title = PluginUtils.cleanText(rawText);
 
-            var commaIdx = line.lastIndexOf(',');
-            var name = commaIdx >= 0 ? line.substring(commaIdx + 1).trim() : '';
+                if (!title || title.length < 2) {
+                    var titleAttr = p.match(/title=["']([^"']+)["']/i) || imgM[0].match(/alt=["']([^"']+)["']/i);
+                    title = titleAttr ? PluginUtils.cleanText(titleAttr[1]) : "Kênh TV";
+                }
 
-            currentInfo = {
-                group: groupMatch ? groupMatch[1] : 'Truyền Hình', // Lấy group gốc để làm mô tả, nếu không có thì mặc định
-                logo: logoMatch ? logoMatch[1] : '',
-                tvgId: tvgIdMatch ? tvgIdMatch[1] : '',
-                name: name,
-                index: channelIndex++
-            };
-            currentUserAgent = '';
-        } else if (line.indexOf('#EXTVLCOPT:http-user-agent=') === 0) {
-            currentUserAgent = line.substring('#EXTVLCOPT:http-user-agent='.length).trim();
-        } else if (line.indexOf('#EXTVLCOPT:') === 0 || line.indexOf('#KODIPROP:') === 0) {
-            // Bỏ qua các cấu hình khác của VLC/Kodi
-        } else if (line.indexOf('#') === 0) {
-            // Bỏ qua comments
-        } else if (line.length > 0 && (line.indexOf('http') === 0 || line.indexOf('//') === 0)) {
-            if (currentInfo) {
-                currentInfo.url = line;
-                currentInfo.userAgent = currentUserAgent;
-                channels.push(currentInfo);
-                currentInfo = null;
-                currentUserAgent = '';
-            } else {
-                currentUserAgent = '';
+                // Chống trùng lặp kênh
+                if (!seen[slug]) {
+                    channels.push({
+                        id: slug,
+                        title: title,
+                        posterUrl: imgM[1],
+                        backdropUrl: imgM[1],
+                        quality: "HD",
+                        episode_current: "Live", // Đánh dấu trực tiếp
+                        lang: "Viet",
+                        year: 0
+                    });
+                    seen[slug] = true;
+                }
             }
         }
-    }
-    return channels;
-}
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-function extractParamFromUrl(url, param) {
-    if (!url) return "";
-    var match = url.match(new RegExp('[?&]' + param + '=([^&]+)'));
-    return match ? decodeURIComponent(match[1]) : "";
-}
-
-function makeChannelId(channel) {
-    if (channel.tvgId) {
-        return channel.tvgId;
-    }
-    return (channel.group || 'unknown') + '::' + (channel.name || '') + '::' + channel.index;
-}
-
-function findChannelByIdInList(channels, channelId) {
-    for (var i = 0; i < channels.length; i++) {
-        if (makeChannelId(channels[i]) === channelId) {
-            return channels[i];
-        }
-    }
-    return null;
-}
-
-// =============================================================================
-// PARSERS
-// =============================================================================
-
-function parseListResponse(apiResponseJson, apiUrl) {
-    try {
-        var channels = parseM3U(apiResponseJson);
-
-        // Lọc theo từ khóa tìm kiếm (nếu có)
-        var searchKeyword = extractParamFromUrl(apiUrl, 'search');
-        if (searchKeyword) {
-            var keyword = searchKeyword.toLowerCase();
-            channels = channels.filter(function (ch) {
-                return ch.name.toLowerCase().indexOf(keyword) >= 0;
-            });
-        }
-        // Khong can loc theo category nua, luon tra ve tat ca cho "truyen-hinh"
-
-        var allItems = [];
-        channels.forEach(function (channel) {
-            allItems.push({
-                id: makeChannelId(channel),
-                title: channel.name,
-                posterUrl: channel.logo || "https://via.placeholder.com/200x200?text=TV",
-                backdropUrl: channel.logo || "",
-                year: 2026,
-                quality: "LIVE",
-                episode_current: "Live",
-                lang: "Việt Nam"
-            });
-        });
 
         return JSON.stringify({
-            items: allItems,
-            pagination: { currentPage: 1, totalPages: 1, totalItems: allItems.length, itemsPerPage: 5000 } // Tăng itemsPerPage lên cao để hiển thị hết 1 lượt
+            items: channels,
+            pagination: {
+                currentPage: 1,
+                totalPages: 1, // Kênh tivi thường load hết trên 1 trang
+                totalItems: channels.length,
+                itemsPerPage: 500
+            }
         });
-    } catch (error) {
+    } catch (e) {
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
 }
 
-function parseSearchResponse(apiResponseJson, apiUrl) {
-    return parseListResponse(apiResponseJson, apiUrl);
+function parseSearchResponse(html) {
+    return parseListResponse(html);
 }
 
-function parseMovieDetail(apiResponseJson, apiUrl) {
+function parseMovieDetail(html) {
     try {
-        var channelId = extractParamFromUrl(apiUrl, 'id');
-        if (!channelId) return "null";
+        var titleM = html.match(/<title>([^<]+)<\/title>/i);
+        var title = titleM ? PluginUtils.cleanText(titleM[1]) : "Xem Tivi";
+        title = title.split('|')[0].trim(); // Xóa đuôi " | Tinhlagi"
 
-        var channels = parseM3U(apiResponseJson);
-        var channel = findChannelByIdInList(channels, channelId);
-
-        if (!channel) {
-            var parts = channelId.split('::');
-            if (parts.length >= 2) {
-                var idx = parseInt(parts[parts.length - 1], 10);
-                if (!isNaN(idx)) {
-                    for (var i = 0; i < channels.length; i++) {
-                        if (channels[i].index === idx) { channel = channels[i]; break; }
-                    }
-                }
-            }
-        }
-        if (!channel) {
-            var parts2 = channelId.split('::');
-            if (parts2.length >= 2) {
-                var nameToFind = parts2[parts2.length - 2];
-                for (var j = 0; j < channels.length; j++) {
-                    if (channels[j].name === nameToFind) { channel = channels[j]; break; }
-                }
-            }
-        }
-        if (!channel) return "null";
-
-        var servers = [];
-        var episodes = [];
-        var episodeId = channel.url;
-        
-        if (channel.userAgent) {
-            episodeId += "|ua=" + encodeURIComponent(channel.userAgent);
-        }
-
-        episodes.push({
-            id: episodeId,
-            name: channel.name,
-            slug: "stream"
-        });
-
-        servers.push({
-            name: "Nguồn Phát",
-            episodes: episodes
-        });
+        // Khai báo 1 tập phim duy nhất để app tạo nút Xem
+        var episodes = [{
+            id: "live",
+            name: "Xem Trực Tiếp",
+            slug: "live"
+        }];
 
         return JSON.stringify({
-            id: makeChannelId(channel),
-            title: channel.name,
-            originName: "Truyền Hình",
-            posterUrl: channel.logo || "",
-            backdropUrl: channel.logo || "",
-            description: "Bạn đang xem kênh: " + channel.name + ". Nguồn phát được cung cấp bởi TV365 & VietNG.",
-            year: 2026,
-            rating: 10,
-            quality: "FHD",
-            servers: servers,
-            episode_current: "Live",
-            lang: "Việt Nam",
+            id: "",
+            title: title,
+            posterUrl: "",
+            backdropUrl: "",
+            description: "Luồng phát sóng trực tiếp. Bấm 'Xem Trực Tiếp' để bắt đầu.",
+            servers: [{ name: "Máy chủ Tivi", episodes: episodes }],
+            quality: "LIVE",
+            lang: "Viet",
+            year: 0,
+            rating: 0,
             category: "Truyền Hình",
-            country: "Việt Nam",
-            director: "TV365-DATA",
-            casts: "Live Broadcast"
+            status: "Đang phát sóng"
         });
-    } catch (error) {
+    } catch (e) {
         return "null";
     }
 }
 
-function parseDetailResponse(apiResponseJson, apiUrl) {
+function parseDetailResponse(html) {
     try {
-        var streamUrl = apiUrl || "";
-        var userAgent = "VLC/3.0.0-git LibVLC/3.0.0-git";
+        var streamUrl = "";
+        var headers = {
+            "Referer": "https://tinhlagi.pro/",
+            "Origin": "https://tinhlagi.pro"
+        };
 
-        if (streamUrl.indexOf('|ua=') !== -1) {
-            var parts = streamUrl.split('|ua=');
-            streamUrl = parts[0];
-            userAgent = decodeURIComponent(parts[1]);
+        // Bóc tách luồng PlayUrl giấu trong script theo chuẩn của Tinhlagi
+        var urlMatch = html.match(/tiviPlayUrl\s*=\s*['"]([^'"]+)['"]/i);
+        if (urlMatch) {
+            streamUrl = urlMatch[1];
         }
 
-        return JSON.stringify({
-            url: streamUrl,
-            headers: { "User-Agent": userAgent },
-            subtitles: []
-        });
-    } catch (error) {
-        var streamUrlFallback = apiUrl || "";
-        if (streamUrlFallback.indexOf('|ua=') !== -1) {
-            streamUrlFallback = streamUrlFallback.split('|ua=')[0];
+        // Bóc tách Header chống chặn (User Agent) nếu web có khai báo
+        var uaMatch = html.match(/tiviUA\s*=\s*['"]([^'"]+)['"]/i);
+        if (uaMatch) {
+            headers["User-Agent"] = uaMatch[1];
         }
-        return JSON.stringify({
-            url: streamUrlFallback,
-            headers: { "User-Agent": "VLC/3.0.0-git LibVLC/3.0.0-git" },
-            subtitles: []
-        });
+
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                headers: headers,
+                isEmbed: false // VAX sẽ đẩy thẳng m3u8/ts vào ExoPlayer
+            });
+        }
+        return JSON.stringify({});
+    } catch (e) {
+        return JSON.stringify({});
     }
 }
 
-function parseCategoriesResponse(apiResponseJson) {
-    return JSON.stringify([
-        { name: 'Truyền Hình', slug: 'truyen-hinh' }
-    ]);
+function parseEmbedResponse(html, sourceUrl) {
+    return JSON.stringify({ url: "", isEmbed: false });
 }
 
-function parseCountriesResponse(apiResponseJson) { return "[]"; }
-function parseYearsResponse(apiResponseJson) { return "[]"; }
+// CÁC HÀM BẮT BUỘC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ"
+function parseCategoriesResponse(html) { return "[]"; }
+function parseCountriesResponse(html) { return "[]"; }
+function parseYearsResponse(html) { return "[]"; }
