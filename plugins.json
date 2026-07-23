@@ -23,11 +23,11 @@
       "iconUrl": "https://bilutv.asia/img/bilutvlogo-ngang.jpg"
     },
     {
-            "id": "yanhh3d",
-            "name": "Yanhh3D",
-            "version": "1.1.8",
-            "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/yanhh3d_plugin.js",
-            "iconUrl": "https://yanhh3d.ac/storage/settings/January2026/yme.png"
+            "id": "hh3d",
+            "name": "HH3D - Hoạt Hình 3D",
+            "version": "1.0.5",
+            "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/hh3d_plugin.js",
+            "iconUrl": "https://hoathinh3d.co/wp-content/uploads/2023/09/favicon.png"
     },
     {
       "id": "gamomephim",
