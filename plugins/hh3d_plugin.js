@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.3.0", // Nâng version để xóa cache app cũ
+        "version": "2.4.0", // Nâng version để xóa cache app cũ
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -95,13 +95,11 @@ var PluginUtils = {
     }
 };
 
-// ĐÃ FIX: Tối ưu hóa thuật toán phân tích, loại bỏ Regex nặng gây chậm Load
 function parseListResponse(html) {
     try {
         var movies = [];
         var seen = {};
 
-        // Tách nhỏ HTML theo từng phim thay vì dùng Regex toàn trang
         var blocks = html.split('<article');
         if (blocks.length < 3) blocks = html.split('class="item');
         if (blocks.length < 3) blocks = html.split('class="halim-item');
@@ -121,7 +119,6 @@ function parseListResponse(html) {
                 var title = PluginUtils.cleanText(titleMatch[1]);
                 var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
 
-                // Bỏ qua link menu, link nhiễu
                 if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
                 if (img.indexOf('avatar') !== -1) continue;
 
@@ -164,6 +161,7 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
+// ĐÃ FIX: Quét toàn bộ HTML để không sót bất cứ tập nào
 function parseMovieDetail(html) {
     try {
         var titleM = html.match(/<meta property="og:title" content="([^"]+)"/i) || html.match(/<title>([^<]+)<\/title>/i);
@@ -181,45 +179,54 @@ function parseMovieDetail(html) {
         var seenV = {};
         var seenT = {};
 
-        // ĐÃ FIX: Chỉ khoanh vùng danh sách tập, chống bắt nhầm thẻ link khác
-        var listBlock = html;
-        var listMatch = html.match(/id=["'](halim-list-server|list-server|list-episodes)["'][\s\S]*?<\/ul>/i) || 
-                        html.match(/class=["'][^"']*(server|episodes|list-ep)[^"']*["'][\s\S]*?<\/div>/i);
-        if (listMatch) listBlock = listMatch[0];
-
-        // Lọc Link Tập
-        var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
+        // Quét toàn bộ thẻ <a> có trong mã nguồn trang web
+        var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
         var aMatch;
 
-        while ((aMatch = aRegex.exec(listBlock)) !== null) {
+        while ((aMatch = aRegex.exec(html)) !== null) {
             var epUrl = aMatch[1];
-            var innerText = PluginUtils.cleanText(aMatch[2]);
+            var innerText = PluginUtils.cleanText(aMatch[2]).trim();
             var lowerText = innerText.toLowerCase();
 
-            // 1. CHẶN NÚT NHIỄU (Bỏ luôn Thuyết Minh, Vietsub, Trailer)
+            // 1. Lọc bỏ các liên kết nhiễu
+            if (!epUrl || epUrl.indexOf('javascript') === 0 || epUrl.indexOf('#') === 0) continue;
             if (lowerText.indexOf('thuyết minh') !== -1 || lowerText.indexOf('vietsub') !== -1 || 
                 lowerText.indexOf('trailer') !== -1 || lowerText.indexOf('download') !== -1) {
                 continue;
             }
-            if (epUrl.indexOf('#') === 0 || epUrl.indexOf('javascript') === 0) continue;
-
-            // 2. XÁC NHẬN CHẮC CHẮN LÀ NÚT TẬP
-            var isEpisode = false;
-            if (epUrl.indexOf('tap-') !== -1 || epUrl.indexOf('/episode') !== -1 || epUrl.indexOf('-tap') !== -1) {
-                isEpisode = true;
-            } else if (!isNaN(innerText) && innerText.trim().length > 0) {
-                isEpisode = true; // Các nút chỉ chứa số: 1, 2, 3...
+            if (epUrl.indexOf('the-loai') !== -1 || epUrl.indexOf('nam-phat-hanh') !== -1 || 
+                epUrl.indexOf('quoc-gia') !== -1 || epUrl.indexOf('?s=') !== -1 || epUrl.indexOf('/page/') !== -1) {
+                continue;
             }
 
-            // 3. THÊM VÀO DANH SÁCH
-            if (isEpisode && innerText.length < 20) {
+            // 2. Nhận diện chính xác liên kết tập phim
+            var isEpisode = false;
+            
+            // Dấu hiệu A: Link có chứa chữ tap- hoặc episode
+            if (epUrl.indexOf('/tap-') !== -1 || epUrl.indexOf('-tap-') !== -1 || epUrl.indexOf('/episode') !== -1 || epUrl.indexOf('/xem-phim') !== -1) {
+                isEpisode = true;
+            } 
+            // Dấu hiệu B: Tên hiển thị chỉ toàn là số (VD: 1, 2, 150)
+            else if (!isNaN(innerText) && innerText.length > 0 && innerText.length <= 4) {
+                isEpisode = true;
+            } 
+            // Dấu hiệu C: Tên hiển thị chứa từ "Tập" và độ dài ngắn
+            else if (lowerText.indexOf('tập ') === 0 && innerText.length < 15) {
+                isEpisode = true;
+            }
+
+            // 3. Phân loại Thuyết Minh và Vietsub
+            if (isEpisode) {
                 var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
                 
                 var epDisplay = innerText;
-                if (!isNaN(epDisplay)) epDisplay = "Tập " + epDisplay;
+                if (!isNaN(epDisplay)) epDisplay = "Tập " + epDisplay; // Định dạng số lại cho đẹp
+                if (lowerText === "xem phim" || lowerText === "xem ngay") epDisplay = "Tập 1";
 
-                // Chuẩn Vietsub thường chứa sever2 hoặc vietsub
-                if (epUrl.indexOf('/sever2/') !== -1 || epUrl.indexOf('-vietsub') !== -1) {
+                // Nhận biết Vietsub thông qua link chứa sever2 hoặc vietsub
+                var isVietsub = epUrl.indexOf('/sever2/') !== -1 || epUrl.indexOf('-vietsub') !== -1;
+
+                if (isVietsub) {
                     if (!seenV[epSlug]) {
                         vietsubEpisodes.push({ id: epSlug, name: epDisplay, slug: epSlug });
                         seenV[epSlug] = true;
@@ -233,7 +240,7 @@ function parseMovieDetail(html) {
             }
         }
 
-        // Tự động sắp xếp xuôi tập 1 -> End
+        // 4. Sắp xếp các tập phim theo thứ tự tăng dần (Từ 1 -> End)
         function sortEpisodes(eps) {
             if (eps.length > 1) {
                 var fM = eps[0].name.match(/\d+/);
@@ -256,9 +263,9 @@ function parseMovieDetail(html) {
             servers.push({ name: "Vietsub", episodes: vietsubEpisodes });
         }
         
-        // Backup nếu API tịt hoàn toàn danh sách tập
+        // Cứu cánh nếu trang web lỗi giao diện, trả về 1 nút dự phòng
         if (servers.length === 0) {
-             servers.push({ name: "Thuyết Minh", episodes: [{ id: "", name: "Đang Cập Nhật", slug: "" }] });
+             servers.push({ name: "Hệ Thống", episodes: [{ id: "", name: "Đang Cập Nhật", slug: "" }] });
         }
 
         return JSON.stringify({
