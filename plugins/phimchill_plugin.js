@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.5.0",             
+        "version": "4.6.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - LỌC SẠCH MENU RÁC, CHỈ BẮT ĐÚNG PHIM
+// PARSERS
 // =============================================================================
 
 function parseListResponse(html) {
@@ -122,7 +122,6 @@ function parseListResponse(html) {
             if (!hrefMatch) continue;
             var href = hrefMatch[1].trim();
 
-            // CHẶN TUYỆT ĐỐI các link không phải là phim (menu thể loại, quốc gia, trang chủ...)
             if (href.indexOf("/the-loai/") !== -1 || href.indexOf("/quoc-gia/") !== -1 || href.indexOf("/danh-sach/") !== -1 || href === BASEURL || href === BASEURL + "/") {
                 continue;
             }
@@ -175,7 +174,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & DANH SÁCH TẬP
+// PARSER CHI TIẾT PHIM & TỰ ĐỘNG BÓC DANH SÁCH TẬP 
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -208,19 +207,20 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*title="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        // 1. Quét ngay trong trang hiện tại (nếu là trang xem phim)
+        var aRegex = /<a[^>]*href="([^"]+)"[^>]*title="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
             var epUrl = match[1].trim();
-            var epTitle = match[2].trim();
             var epText = match[3].replace(/<[^>]*>/g, '').trim();
 
             if (epUrl.indexOf('http') !== 0) {
                 epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            if (epUrl.indexOf('tap-') !== -1 && !seenEp[epUrl]) {
-                var nameEp = !isNaN(epText) ? ("Tập " + epText) : (epTitle || "Tập");
+            // Bắt các link tập phim chứa chữ tap- hoặc số thứ tự tập sạch sẽ
+            if ((epUrl.indexOf('tap-') !== -1 || !isNaN(epText)) && epUrl.indexOf('/phim/') !== -1 && !seenEp[epUrl]) {
+                var nameEp = !isNaN(epText) ? ("Tập " + epText) : ("Tập");
                 episodes.push({
                     id: epUrl,
                     name: nameEp,
@@ -230,11 +230,29 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
+        // 2. Nếu đang ở trang thông tin phim (chưa có danh sách tập), tự động lấy link nút "Xem Phim" để điều hướng ngầm lấy tập
+        var extraPlayUrl = "";
+        if (episodes.length === 0) {
+            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+)"[^>]*>[^<]*Xem Phim/i) || html.match(/href="([^"]+\/tap-1[^"]+)"/i);
+            if (xemPhimMatch) {
+                extraPlayUrl = xemPhimMatch[1];
+                if (extraPlayUrl.indexOf('http') !== 0) {
+                    extraPlayUrl = BASEURL + (extraPlayUrl.startsWith('/') ? '' : '/') + extraPlayUrl;
+                }
+            }
+        }
+
         var servers = [];
         if (episodes.length > 0) {
             servers.push({
                 name: "Danh Sách Vietsub",
                 episodes: episodes
+            });
+        } else if (extraPlayUrl) {
+            // Tự động tạo danh sách tập từ trang xem phim được trỏ tới
+            servers.push({
+                name: "Xem Phim Nhanh",
+                episodes: [{ id: extraPlayUrl, name: "Tập 1", slug: "tap-1" }]
             });
         } else {
             servers.push({
