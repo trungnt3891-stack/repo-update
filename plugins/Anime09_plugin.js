@@ -1,0 +1,373 @@
+// =============================================================================
+// CONFIGURATION & METADATA
+// =============================================================================
+
+function getManifest() {
+    return JSON.stringify({
+        "id": "animehay",
+        "name": "AnimeHay",
+        "version": "1.8.0", // Hoàn thiện tính năng Tìm kiếm bằng cách chuẩn hóa URL kết quả trang chủ/danh mục
+        "baseUrl": "https://animehay09.site",
+        "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
+        "isEnabled": true,
+        "isAdult": false,
+        "type": "MOVIE",
+        "layoutType": "VERTICAL",
+        "playerType": "auto"
+    });
+}
+
+function getHomeSections() {
+    return JSON.stringify([
+        { slug: 'phim-moi-cap-nhap/tat-ca-1.html', title: 'Mới Cập Nhật', type: 'Grid', path: '' },
+        { slug: 'the-loai/hanh-dong-2.html', title: 'Hành Động', type: 'Grid', path: '' },
+        { slug: 'the-loai/vien-tuong-33.html', title: 'Viễn Tưởng', type: 'Grid', path: '' },
+        { slug: 'the-loai/cn-animation-34.html', title: 'Hoạt Hình Trung Quốc', type: 'Grid', path: '' },
+        { slug: 'the-loai/tien-hiep-35.html', title: 'Tiên Hiệp', type: 'Grid', path: '' }
+    ]);
+}
+
+function getPrimaryCategories() {
+    return JSON.stringify([
+        { slug: 'phim-moi-cap-nhap/tat-ca-1.html', name: 'Mới Cập Nhật' },
+        { slug: 'the-loai/anime-1.html', name: 'Anime' },
+        { slug: 'the-loai/hanh-dong-2.html', name: 'Hành Động' },
+        { slug: 'the-loai/tinh-cam-4.html', name: 'Tình Cảm' },
+        { slug: 'the-loai/hai-huoc-3.html', name: 'Hài Hước' },
+        { slug: 'the-loai/cn-animation-34.html', name: 'CN Animation' },
+        { slug: 'the-loai/tien-hiep-35.html', name: 'Tiên Hiệp' },
+        { slug: 'the-loai/kiem-hiep-36.html', name: 'Kiếm Hiệp' },
+        { slug: 'the-loai/xuyen-khong-37.html', name: 'Xuyên Không' },
+        { slug: 'the-loai/kinh-di-29.html', name: 'Kinh Dị' }
+    ]);
+}
+
+function getFilterConfig() { return JSON.stringify({}); }
+
+// =============================================================================
+// URL GENERATION
+// =============================================================================
+
+function getUrlList(slug, filtersJson) {
+    var filters = JSON.parse(filtersJson || "{}");
+    var page = filters.page || 1;
+    var baseUrl = "https://animehay09.site";
+    
+    if (page > 1) {
+        return baseUrl + "/" + slug.replace(".html", "") + "/trang-" + page + ".html";
+    }
+    return baseUrl + "/" + slug;
+}
+
+// Sửa cấu trúc URL Tìm kiếm để tương thích với query truyền vào từ App Vax
+function getUrlSearch(keyword, filtersJson) {
+    var filters = JSON.parse(filtersJson || "{}");
+    var page = filters.page || 1;
+    var encoded = encodeURIComponent(keyword.trim());
+    
+    // Trỏ vào danh mục bộ lọc tìm kiếm của website qua tham số GET
+    if (page > 1) {
+        return "https://animehay09.site/tim-kiem/trang-" + page + ".html?q=" + encoded + "&keyword=" + encoded;
+    }
+    return "https://animehay09.site/tim-kiem/?q=" + encoded + "&keyword=" + encoded;
+}
+
+function getUrlDetail(slug) {
+    if (slug.indexOf("http") === 0) return slug;
+    return "https://animehay09.site/" + slug.replace(/^\//, "");
+}
+
+function getUrlCategories() { return ""; }
+function getUrlCountries() { return ""; }
+function getUrlYears() { return ""; }
+
+// =============================================================================
+// PARSERS
+// =============================================================================
+
+var PluginUtils = {
+    cleanText: function (text) {
+        if (!text) return "";
+        return text.replace(/<[^>]*>/g, "")
+            .replace(/&amp;/g, "&")
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+};
+
+function parseListResponse(html) {
+    try {
+        var items = [];
+        var seen = {};
+        
+        var regex = /<a[^>]*href=["']([^"']+)["'][^>]*title=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*(?:data-src|src)=["']([^"']+)["']/gi;
+        var match;
+        
+        while ((match = regex.exec(html)) !== null) {
+            var url = match[1];
+            var title = match[2].replace(/<[^>]*>/g, '').trim();
+            var img = match[3];
+            
+            if (url.indexOf("thong-tin-phim") === -1 && url.indexOf("xem-phim") === -1) continue;
+            
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            if (!seen[slug]) {
+                items.push({
+                    id: slug,
+                    title: title,
+                    posterUrl: img,
+                    backdropUrl: img,
+                    quality: "HD"
+                });
+                seen[slug] = true;
+            }
+        }
+        
+        var currentPage = 1;
+        var pageMatch = html.match(/class=["']current[^"']*["'][^>]*>(\d+)</i);
+        if (pageMatch) currentPage = parseInt(pageMatch[1], 10);
+        
+        return JSON.stringify({
+            items: items,
+            pagination: {
+                currentPage: currentPage,
+                totalPages: 100, 
+                totalItems: 9999,
+                itemsPerPage: 20
+            }
+        });
+    } catch (e) {
+        return JSON.stringify({ items: [] });
+    }
+}
+
+// Bắt kết quả tìm kiếm chuẩn xác bằng cấu trúc quét linh hoạt
+function parseSearchResponse(html) {
+    try {
+        var items = [];
+        var seen = {};
+        
+        // Quét tất cả các thẻ có chứa link thông tin phim hoặc xem phim
+        var regex = /<a[^>]*href=["']([^"']+(?:thong-tin-phim|xem-phim)[^"']+)["'][^>]*title=["']([^"']+)["']/gi;
+        var match;
+        
+        while ((match = regex.exec(html)) !== null) {
+            var url = match[1];
+            var title = match[2].replace(/<[^>]*>/g, '').trim();
+            
+            var subBlock = html.substring(match.index, match.index + 600);
+            var imgMatch = subBlock.match(/(?:src|data-src)=["']([^"']+)["']/i);
+            var img = imgMatch ? imgMatch[1] : "";
+            
+            if (!img || title.toLowerCase() === "animehay" || title.length < 2) continue;
+            
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            if (!seen[slug]) {
+                items.push({
+                    id: slug,
+                    title: title,
+                    posterUrl: img,
+                    backdropUrl: img,
+                    quality: "HD"
+                });
+                seen[slug] = true;
+            }
+        }
+        
+        if (items.length === 0) {
+            return parseListResponse(html);
+        }
+
+        return JSON.stringify({
+            items: items,
+            pagination: { currentPage: 1, totalPages: 10, totalItems: items.length, itemsPerPage: 20 }
+        });
+    } catch (e) {
+        return parseListResponse(html);
+    }
+}
+
+function parseMovieDetail(html) {
+    try {
+        var ogTitle = html.match(/<meta property="og:title" content="([^"]+)"/i);
+        var title = ogTitle ? ogTitle[1] : "";
+        if (!title) {
+            var h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+            title = h1Match ? h1Match[1] : "Phim Anime";
+        }
+        title = PluginUtils.cleanText(title).replace(/\|\| AnimeHay/gi, "").replace(/Phim /gi, "").trim();
+
+        var imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+        var poster = imgMatch ? imgMatch[1] : "";
+
+        var descMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
+        var desc = descMatch ? PluginUtils.cleanText(descMatch[1]) : "";
+
+        var baseSlug = "animehay-movie";
+        var ogUrl = html.match(/<meta property="og:url" content="([^"]+)"/i);
+        if (ogUrl) {
+            baseSlug = ogUrl[1].replace(/\/$/, "").split('/').pop();
+        }
+
+        var episodes = [];
+        var seenEp = {};
+        
+        var aTags = html.split(/<a\s+/i);
+        for (var i = 1; i < aTags.length; i++) {
+            var aTag = aTags[i];
+            
+            var hrefMatch = aTag.match(/href=["']([^"']+\/xem-phim\/[^"']+)["']/i);
+            if (!hrefMatch) continue;
+            
+            var url = hrefMatch[1];
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            var numMatch = slug.match(/tap-(\d+)/i);
+            if (numMatch) {
+                var epNum = numMatch[1];
+                var textMatch = aTag.match(/>([\s\S]*?)<\/a>/i);
+                var rawText = textMatch ? PluginUtils.cleanText(textMatch[1]) : "";
+                
+                if (rawText.indexOf('/') !== -1 || rawText.indexOf('??') !== -1) continue;
+                
+                if (epNum && !seenEp[slug]) {
+                    episodes.push({
+                        id: slug,
+                        name: "Tập " + epNum,
+                        slug: slug
+                    });
+                    seenEp[slug] = true;
+                }
+            }
+        }
+        
+        if (episodes.length > 1) {
+            episodes.sort(function(a, b) {
+                var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+        }
+
+        var servers = [];
+        if (episodes.length > 0) {
+            servers.push({
+                name: "AnimeHay VIP",
+                episodes: episodes
+            });
+        } else {
+             var watchLinkMatch = html.match(/href=["'](https?:\/\/[^"']+\/xem-phim\/[^"']+)["']/i);
+             var watchSlug = watchLinkMatch ? watchLinkMatch[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "") : baseSlug;
+             
+             servers.push({
+                name: "AnimeHay VIP",
+                episodes: [{
+                    id: watchSlug,
+                    name: "Full",
+                    slug: watchSlug
+                }]
+             });
+        }
+
+        return JSON.stringify({
+            id: baseSlug, 
+            title: title,
+            posterUrl: poster,
+            backdropUrl: poster,
+            description: desc,
+            servers: servers,
+            quality: "HD",
+            lang: "Vietsub",
+            year: 0
+        });
+    } catch (e) {
+        return JSON.stringify({});
+    }
+}
+
+function parseDetailResponse(html) {
+    try {
+        var streamUrl = "";
+        
+        var serversMatch = html.match(/var\s+\$wp_servers\s*=\s*({[\s\S]+?});/i);
+        if (serversMatch) {
+            var serversJsonStr = serversMatch[1];
+            var ahsMatch = serversJsonStr.match(/['"]AHS['"]\s*:\s*['"](https?:\/\/[^'"]+)['"]/i);
+            if (ahsMatch) {
+                streamUrl = ahsMatch[1];
+            } else {
+                var linkMatch = serversJsonStr.match(/['"](https?:\/\/[^'"]+)['"]/);
+                if (linkMatch) streamUrl = linkMatch[1];
+            }
+        }
+        
+        if (!streamUrl) {
+            var iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+            if (iframeMatch) {
+                streamUrl = iframeMatch[1];
+            }
+        }
+
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                headers: { 
+                    "Referer": "https://animehay09.site/",
+                    "Origin": "https://animehay09.site",
+                    "User-Agent": "Mozilla/5.0"
+                },
+                isEmbed: true 
+            });
+        }
+
+        return JSON.stringify({});
+    } catch (e) {
+        return JSON.stringify({});
+    }
+}
+
+function parseEmbedResponse(html, sourceUrl) {
+    try {
+        var streamUrl = "";
+        
+        var m3u8Match = html.match(/M3U8_URL\s*=\s*['"]([^'"]+)['"]/i);
+        if (m3u8Match) {
+            streamUrl = m3u8Match[1];
+        }
+        
+        if (!streamUrl) {
+            var fileMatch = html.match(/file\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i);
+            if (fileMatch) streamUrl = fileMatch[1];
+        }
+
+        if (!streamUrl) {
+            var genericMatch = html.match(/(https?:\/\/[^"'\s<>]*\.m3u8[^"'\s<>]*)/i);
+            if (genericMatch) streamUrl = genericMatch[1];
+        }
+
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                isEmbed: false,
+                mimeType: "application/x-mpegURL",
+                headers: {
+                    "Referer": "https://ahay.stream/",
+                    "Origin": "https://ahay.stream",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+            });
+        }
+        
+        return JSON.stringify({ url: "", isEmbed: false });
+    } catch (e) {
+        return JSON.stringify({ url: "", isEmbed: false });
+    }
+}
+
+function parseCategoriesResponse(html) { return "[]"; }
+function parseCountriesResponse(html) { return "[]"; }
+function parseYearsResponse(html) { return "[]"; }
