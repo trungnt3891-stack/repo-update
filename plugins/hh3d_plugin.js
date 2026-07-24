@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.8.0", // Bản cập nhật: Fix triệt để lỗi Tìm Kiếm & Tối ưu Bảng Xếp Hạng
+        "version": "2.9.0", // Bản cập nhật: Fix triệt để kết quả Tìm Kiếm bị loãng
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -68,7 +68,6 @@ function getUrlList(slug, filtersJson) {
     }
 }
 
-// ĐÃ FIX: Chuẩn hóa URL Tìm kiếm của WordPress
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
@@ -105,31 +104,35 @@ var PluginUtils = {
     }
 };
 
-// ĐÃ FIX: Thuật toán quét đa tầng (Tìm kiếm, Trang chủ & Bảng xếp hạng đều nhận)
-function parseListResponse(html) {
+// Hàm xử lý chung, tách biệt logic giữa Tìm Kiếm và Danh Sách
+function parseHtmlToList(html, isSearch) {
     try {
         var movies = [];
         var seen = {};
         var chunks = [];
-        
-        // Cắt mảng HTML bằng nhiều phương pháp để bao phủ mọi cấu trúc giao diện
-        var blocksArticle = html.split('<article');
-        var blocksItem = html.split('class="item');
-        var blocksHalim = html.split('class="halim-item');
-        var blocksA = html.split('<a '); // Vét đáy cho Bảng xếp hạng
 
-        // Gộp tất cả các mảnh cắt lại để xử lý 1 lần
-        chunks = chunks.concat(blocksArticle, blocksItem, blocksHalim, blocksA);
+        if (isSearch) {
+            // NẾU LÀ TÌM KIẾM: Khoanh vùng khu vực kết quả chính, bỏ qua Sidebar Bảng xếp hạng
+            var mainMatch = html.match(/<main[\s\S]*?<\/main>/i) || 
+                            html.match(/class=["'][^"']*(halim_box|main-content|archive-content)[^"']*["'][\s\S]*?(<aside|<\/section>)/i);
+            if (mainMatch) {
+                html = mainMatch[0];
+            }
+            // Chỉ quét cấu trúc phim chuẩn (tránh bắt nhầm link rác)
+            chunks = chunks.concat(html.split('<article'), html.split('class="item'), html.split('class="halim-item'));
+        } else {
+            // NẾU LÀ TRANG CHỦ: Quét mọi thứ bao gồm cả Bảng xếp hạng bên phải (thẻ a)
+            chunks = chunks.concat(html.split('<article'), html.split('class="item'), html.split('class="halim-item'), html.split('<a '));
+        }
 
         for (var i = 0; i < chunks.length; i++) {
             var block = chunks[i];
-            if (!block || block.length < 20) continue; // Bỏ qua các chuỗi nhiễu quá ngắn
+            if (!block || block.length < 20) continue;
             
             var urlMatch = block.match(/href=["']([^"']+)["']/i);
             var imgMatch = block.match(/src=["']([^"']+)["']/i) || block.match(/data-src=["']([^"']+)["']/i);
             var titleMatch = block.match(/title=["']([^"']+)["']/i) || block.match(/alt=["']([^"']+)["']/i);
             
-            // Nếu không tìm thấy title/alt ở thẻ img, tìm trong thẻ Heading
             if (!titleMatch) {
                  var tMatch = block.match(/<h[234][^>]*>([^<]+)<\/h[234]>/i);
                  if (tMatch) titleMatch = tMatch;
@@ -143,12 +146,10 @@ function parseListResponse(html) {
                 var title = PluginUtils.cleanText(titleMatch[1]);
                 var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
 
-                // Lọc bỏ các liên kết không phải phim (Menu, Logo, Chuyển trang...)
                 if (url.indexOf('the-loai') !== -1 || url.indexOf('/page/') !== -1 || url.indexOf('?s=') !== -1) continue;
                 if (img.indexOf('avatar') !== -1 || img.indexOf('logo') !== -1 || img.indexOf('banner') !== -1) continue;
                 if (url === '/' || url.indexOf('javascript:') !== -1 || url.indexOf('#') === 0) continue;
 
-                // Kiểm tra trùng lặp (vì gộp nhiều mảng nên 1 phim có thể bị quét trúng 2 lần)
                 if (title && !seen[url]) {
                     var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
                     movies.push({
@@ -184,8 +185,12 @@ function parseListResponse(html) {
     }
 }
 
+function parseListResponse(html) {
+    return parseHtmlToList(html, false);
+}
+
 function parseSearchResponse(html) {
-    return parseListResponse(html);
+    return parseHtmlToList(html, true);
 }
 
 function parseMovieDetail(html) {
