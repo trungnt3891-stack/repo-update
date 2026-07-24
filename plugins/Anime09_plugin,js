@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.5.0", // Fix lỗi hiển thị tên tập bị dính "??"
+        "version": "1.1.1", // Giữ nguyên bản ổn định, chỉ làm sạch tên tập phim
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -146,17 +146,16 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
-// Bóc chuẩn danh sách tập dựa trên class wp-ep chuẩn xác của AnimeHay
 function parseMovieDetail(html) {
     try {
-        var titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i);
-        var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]).replace(/\|\| AnimeHay/gi, "").trim() : "Unknown Title";
+        var titleMatch = html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i) || html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        var title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').replace("|| AnimeHay", "").trim() : "Unknown Title";
 
         var imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
         var poster = imgMatch ? imgMatch[1] : "";
 
         var descMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
-        var desc = descMatch ? PluginUtils.cleanText(descMatch[1]) : "";
+        var desc = descMatch ? descMatch[1].trim() : "";
 
         var baseSlug = "animehay-movie";
         var ogUrl = html.match(/<meta property="og:url" content="([^"]+)"/i);
@@ -165,37 +164,21 @@ function parseMovieDetail(html) {
         }
 
         var episodes = [];
+        // Lọc chuẩn: Chỉ bắt link xem phim có chứa '-tap-' để chắc chắn đó là tập phim
+        var epRegex = /<a[^>]*href=["'](https?:\/\/[^"']+\/xem-phim\/[^"']+)["'][^>]*class=["'][^"']*wp-ep[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+        var match;
         var seenEp = {};
         
-        // Chỉ quét các thẻ <a> thuộc class "wp-ep" để lấy đúng tập phim sạch sẽ
-        var blocks = html.split(/<a\s+/i);
-        for (var i = 1; i < blocks.length; i++) {
-            var block = blocks[i];
-            
-            if (block.indexOf('class="wp-ep') === -1 && block.indexOf("class='wp-ep") === -1 && block.indexOf('wp-ep') === -1) continue;
-            
-            var hrefMatch = block.match(/href=["']([^"']+)["']/i);
-            if (!hrefMatch) continue;
-            
-            var url = hrefMatch[1];
+        while ((match = epRegex.exec(html)) !== null) {
+            var url = match[1];
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
-            // Lấy số tập từ thuộc tính data-no hoặc từ nội dung text bên trong
-            var dataNoMatch = block.match(/data-no=["']([^"']+)["']/i);
-            var textMatch = block.match(/>([\s\S]*?)<\/a>/i);
+            // Chỉ lấy các link đích thực là tập phim
+            if (slug.indexOf('-tap-') === -1) continue;
             
-            var epNum = "";
-            if (dataNoMatch) {
-                epNum = dataNoMatch[1].trim();
-            } else if (textMatch) {
-                epNum = PluginUtils.cleanText(textMatch[1]);
-            }
-            
-            if (!epNum || isNaN(epNum)) {
-                // Thử bóc số từ URL nếu text bị lẫn lộn
-                var urlNumMatch = slug.match(/tap-(\d+)/i);
-                if (urlNumMatch) epNum = urlNumMatch[1];
-            }
+            // Tách lấy số tập chuẩn xác từ URL (VD: the-gioi-hoan-my-tap-43-50840.html -> 43)
+            var numMatch = slug.match(/tap-(\d+)/i);
+            var epNum = numMatch ? numMatch[1] : "";
             
             if (epNum && !seenEp[slug]) {
                 episodes.push({
@@ -207,14 +190,8 @@ function parseMovieDetail(html) {
             }
         }
         
-        // Sắp xếp lại tập từ 1 -> N xuôi chiều
-        if (episodes.length > 1) {
-            episodes.sort(function(a, b) {
-                var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
-                var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
-                return numA - numB;
-            });
-        }
+        // Đảo lại thứ tự từ tập 1 -> N
+        episodes.reverse();
 
         var servers = [];
         if (episodes.length > 0) {
@@ -223,14 +200,14 @@ function parseMovieDetail(html) {
                 episodes: episodes
             });
         } else {
-             servers.push({
+            servers.push({
                 name: "AnimeHay VIP",
-                episodes: [{id: baseSlug, name: "Xem Phim", slug: baseSlug}]
-             });
+                episodes: [{ id: baseSlug, name: "Full", slug: baseSlug }]
+            });
         }
 
         return JSON.stringify({
-            id: baseSlug, 
+            id: baseSlug,
             title: title,
             posterUrl: poster,
             backdropUrl: poster,
