@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.4.2", // Lọc sạch tuyệt đối các chuỗi trạng thái tập phim rác (có chứa / hoặc ??)
+        "version": "1.5.0", // Hoàn thiện hỗ trợ Phim Lẻ / Full và fix lỗi quét tập
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -176,28 +176,23 @@ function parseMovieDetail(html) {
             var url = hrefMatch[1];
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
-            // Chỉ lấy các link đích thực là tập phim (có chứa chữ tap-)
-            if (slug.indexOf('-tap-') === -1) continue;
-
+            // Kiểm tra xem có phải link tập hay không
             var numMatch = slug.match(/tap-(\d+)/i);
-            if (!numMatch) continue;
-            var epNum = numMatch[1];
-            
-            // Lọc bỏ các giá trị rác bị dính định dạng dạng phân số hoặc chứa ký tự đặc biệt lạ
-            var textMatch = aTag.match(/>([\s\S]*?)<\/a>/i);
-            var rawText = textMatch ? PluginUtils.cleanText(textMatch[1]) : "";
-            
-            if (rawText.indexOf('/') !== -1 || rawText.indexOf('??') !== -1) {
-                continue; // Bỏ qua các nhãn trạng thái kiểu 87/129 hoặc 3/??
-            }
-            
-            if (epNum && !seenEp[slug]) {
-                episodes.push({
-                    id: slug,
-                    name: "Tập " + epNum,
-                    slug: slug
-                });
-                seenEp[slug] = true;
+            if (numMatch) {
+                var epNum = numMatch[1];
+                var textMatch = aTag.match(/>([\s\S]*?)<\/a>/i);
+                var rawText = textMatch ? PluginUtils.cleanText(textMatch[1]) : "";
+                
+                if (rawText.indexOf('/') !== -1 || rawText.indexOf('??') !== -1) continue;
+                
+                if (epNum && !seenEp[slug]) {
+                    episodes.push({
+                        id: slug,
+                        name: "Tập " + epNum,
+                        slug: slug
+                    });
+                    seenEp[slug] = true;
+                }
             }
         }
         
@@ -217,9 +212,17 @@ function parseMovieDetail(html) {
                 episodes: episodes
             });
         } else {
+             // HỖ TRỢ PHIM LẺ / FULL: Nếu không tìm thấy danh sách tập số, tự động tạo nút "Full"
+             var watchLinkMatch = html.match(/href=["'](https?:\/\/[^"']+\/xem-phim\/[^"']+)["']/i);
+             var watchSlug = watchLinkMatch ? watchLinkMatch[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "") : baseSlug;
+             
              servers.push({
                 name: "AnimeHay VIP",
-                episodes: [{id: baseSlug, name: "Full", slug: baseSlug}]
+                episodes: [{
+                    id: watchSlug,
+                    name: "Full",
+                    slug: watchSlug
+                }]
              });
         }
 
