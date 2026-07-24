@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "3.0.0", // Bản Final: Fix hoàn toàn trùng lặp và làm sạch Tìm Kiếm
+        "version": "3.1.0", // Fix dứt điểm Lỗi Tìm Kiếm & Lỗi Trùng Lặp Phim
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -68,14 +68,16 @@ function getUrlList(slug, filtersJson) {
     }
 }
 
+// ĐÃ FIX CỰC CHUẨN: Đường dẫn tìm kiếm tương thích 100% với WordPress của YanHH3D
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    // Bỏ dấu gạch chéo dư thừa, fix chuẩn tìm kiếm của WordPress
+    var cleanKeyword = encodeURIComponent(keyword.trim());
+    
     if (page === 1) {
-        return "https://yanhh3d.ac/?s=" + encodeURIComponent(keyword);
+        return "https://yanhh3d.ac/?s=" + cleanKeyword;
     } else {
-        return "https://yanhh3d.ac/page/" + page + "?s=" + encodeURIComponent(keyword);
+        return "https://yanhh3d.ac/page/" + page + "/?s=" + cleanKeyword;
     }
 }
 
@@ -105,74 +107,52 @@ var PluginUtils = {
     }
 };
 
-// ĐÃ FIX: Thuật toán tách link siêu tốc, không bao giờ gây trùng lặp
+// ĐÃ FIX: Hàm quét danh sách chuẩn cho Trang Chủ và Danh Mục (Chống trùng lặp 100%)
 function parseListResponse(html) {
     try {
         var movies = [];
         var seen = {};
 
-        var blocks = html.split('href="');
+        // Tách block bằng thẻ article hoặc class item chuẩn của theme Halim/YanHH3D
+        var blocks = html.split(/<article/i);
+        if (blocks.length < 2) blocks = html.split(/class=["'][^"']*halim-item[^"']*["']/i);
+        if (blocks.length < 2) blocks = html.split(/class=["'][^"']*item[^"']*["']/i);
 
         for (var i = 1; i < blocks.length; i++) {
             var block = blocks[i];
             
-            // 1. Trích xuất URL
-            var urlEnd = block.indexOf('"');
-            if (urlEnd === -1) urlEnd = block.indexOf("'");
-            if (urlEnd === -1) continue;
-            var url = block.substring(0, urlEnd);
+            var urlMatch = block.match(/href=["']([^"']+)["']/i);
+            var imgMatch = block.match(/src=["']([^"']+)["']/i) || block.match(/data-src=["']([^"']+)["']/i);
+            var titleMatch = block.match(/title=["']([^"']+)["']/i) || block.match(/alt=["']([^"']+)["']/i) || block.match(/<h[234][^>]*>([^<]+)<\/h[234]>/i);
+            var epMatch = block.match(/class=["'][^"']*(ep|episode|label|status|time)[^"']*["'][^>]*>([^<]+)</i);
 
-            // Bỏ qua link rác ngay lập tức để tiết kiệm tài nguyên
-            if (url.indexOf('the-loai') !== -1 || url.indexOf('/page/') !== -1 || url.indexOf('?s=') !== -1 || url === '/' || url.indexOf('#') === 0 || url.indexOf('javascript') === 0) continue;
+            if (urlMatch && imgMatch && titleMatch) {
+                var url = urlMatch[1];
+                var img = imgMatch[1] || imgMatch[2];
+                var title = PluginUtils.cleanText(titleMatch[1]);
+                var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
 
-            // 2. Trích xuất thẻ <a>
-            var aEnd = block.indexOf('</a>');
-            if (aEnd === -1) continue;
-            var innerHtml = block.substring(urlEnd, aEnd);
+                // Bỏ qua các link nhiễu không phải phim
+                if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
+                if (img.indexOf('avatar') !== -1 || img.indexOf('logo') !== -1 || img.indexOf('banner') !== -1) continue;
+                if (url === '/' || url.indexOf('javascript:') !== -1 || url.indexOf('#') === 0) continue;
 
-            // 3. Tìm ảnh (Phim phải có ảnh Poster)
-            var imgMatch = innerHtml.match(/<img[^>]+(data-src|src)=["']([^"']+)["']/i);
-            if (!imgMatch) continue;
-            var img = imgMatch[2];
-            // Lọc bỏ các ảnh không phải phim (Logo, Avatar bình luận...)
-            if (img.indexOf('logo') !== -1 || img.indexOf('avatar') !== -1 || img.indexOf('banner') !== -1 || img.indexOf('icon') !== -1) continue;
-
-            // 4. Tìm Tên Phim
-            var title = "";
-            var titleMatch = block.match(/title=["']([^"']+)["']/i);
-            if (titleMatch && titleMatch.index < aEnd) {
-                 title = titleMatch[1];
-            } else {
-                 var altMatch = innerHtml.match(/alt=["']([^"']+)["']/i);
-                 if (altMatch) title = altMatch[1];
-                 else {
-                     var hMatch = innerHtml.match(/<h[234][^>]*>([^<]+)<\/h[234]>/i);
-                     if (hMatch) title = hMatch[1];
-                 }
-            }
-            title = PluginUtils.cleanText(title);
-            if (!title) continue;
-
-            // 5. Tìm Số Tập (Nếu có)
-            var epMatch = innerHtml.match(/class=["'][^"']*(ep|episode|label|status|time)[^"']*["'][^>]*>([^<]+)</i);
-            var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
-
-            // 6. Xử lý Slug và chống trùng lặp
-            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "").replace(/\/$/, "");
-            if (!slug || slug.length < 3) continue;
-
-            if (!seen[slug]) {
-                movies.push({
-                    id: slug,
-                    title: title,
-                    posterUrl: img,
-                    backdropUrl: img,
-                    quality: "HD",
-                    episode_current: episode,
-                    lang: "Vietsub / TM",
-                    year: 0
-                });
-                seen[slug] = true; 
+                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "").replace(/\/$/, "");
+                
+                // Lọc trùng lặp nghiêm ngặt
+                if (title && slug && !seen[slug]) {
+                    movies.push({
+                        id: slug,
+                        title: title,
+                        posterUrl: img,
+                        backdropUrl: img,
+                        quality: "HD",
+                        episode_current: episode,
+                        lang: "Vietsub / TM",
+                        year: 0
+                    });
+                    seen[slug] = true; 
+                }
             }
         }
 
@@ -194,16 +174,22 @@ function parseListResponse(html) {
     }
 }
 
-// ĐÃ FIX: Chặt bỏ cột Bảng xếp hạng bên phải khi Tìm kiếm để kết quả trả về chuẩn 100%
+// ĐÃ FIX RIÊNG BẢN TÌM KIẾM: Loại bỏ triệt để Sidebar Bảng Xếp Hạng, chỉ giữ kết quả chuẩn
 function parseSearchResponse(html) {
-    var endIdx = html.toLowerCase().indexOf('<aside');
-    if (endIdx === -1) endIdx = html.indexOf('id="right-sidebar"');
-    if (endIdx === -1) endIdx = html.indexOf('class="sidebar"');
-    if (endIdx === -1) endIdx = html.indexOf('id="sidebar"');
-    if (endIdx !== -1) {
-        html = html.substring(0, endIdx);
+    try {
+        // Cắt bỏ phần Sidebar / Bảng Xếp Hạng bên phải
+        var cleanHtml = html;
+        var sidebarIdx = cleanHtml.indexOf('id="sidebar"') !== -1 ? cleanHtml.indexOf('id="sidebar"') : cleanHtml.indexOf('class="sidebar"');
+        if (sidebarIdx === -1) sidebarIdx = cleanHtml.indexOf('<aside');
+        
+        if (sidebarIdx !== -1) {
+            cleanHtml = cleanHtml.substring(0, sidebarIdx);
+        }
+
+        return parseListResponse(cleanHtml);
+    } catch (e) {
+        return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
-    return parseListResponse(html);
 }
 
 function parseMovieDetail(html) {
