@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.2.0", // Fix lỗi mất tập do HTML ẩn và tối ưu bắt M3U8 từ Iframe
+        "version": "1.3.0", // Fix dứt điểm lỗi không nhận tập phim
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -146,7 +146,6 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
-// Bắt tuyệt đối toàn bộ tập bằng split (Tránh lỗi newline trong thẻ HTML)
 function parseMovieDetail(html) {
     try {
         var titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i);
@@ -161,46 +160,55 @@ function parseMovieDetail(html) {
         var episodes = [];
         var seenEp = {};
         
-        // Cắt html theo thẻ <a> để bóc tập chính xác
-        var aTags = html.split('<a ');
-        for (var i = 1; i < aTags.length; i++) {
-            var aTag = aTags[i];
+        // Quét mạnh toàn bộ thẻ <a> để nhặt link tập, bỏ qua các class cản trở
+        var blocks = html.split('<a ');
+        for (var i = 1; i < blocks.length; i++) {
+            var block = blocks[i];
             
-            // Chỉ lấy các thẻ có href trỏ tới /xem-phim/ và mang class wp-ep
-            if (aTag.indexOf('xem-phim') === -1) continue;
-            if (aTag.indexOf('wp-ep') === -1) continue;
-
-            var urlMatch = aTag.match(/href=["']([^"']+)["']/i);
-            var titleAttrMatch = aTag.match(/title=["']([^"']+)["']/i);
-            var textMatch = aTag.match(/>([^<]+)<\/a>/i);
-
-            if (urlMatch) {
-                var url = urlMatch[1];
-                var name = "Tập ?";
-                
-                if (titleAttrMatch) {
-                    name = titleAttrMatch[1].trim(); // Lấy từ title="Tập 279"
-                } else if (textMatch) {
-                    var txt = PluginUtils.cleanText(textMatch[1]);
-                    if (txt) name = isNaN(txt) ? txt : "Tập " + txt;
-                }
-
-                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                
-                if (slug && !seenEp[slug]) {
-                    episodes.push({
-                        id: slug,
-                        name: name,
-                        slug: slug
-                    });
-                    seenEp[slug] = true;
-                }
+            // Link tập phim phải chứa /xem-phim/
+            if (block.indexOf('/xem-phim/') === -1) continue;
+            
+            var hrefMatch = block.match(/href=["']([^"']+\/xem-phim\/[^"']+)["']/i);
+            if (!hrefMatch) continue;
+            
+            var url = hrefMatch[1];
+            var titleAttrMatch = block.match(/title=["']([^"']+)["']/i);
+            var textMatch = block.match(/>([\s\S]*?)<\/a>/i);
+            
+            var name = "";
+            if (titleAttrMatch) {
+                name = titleAttrMatch[1].trim(); // Lấy "Tập 279" từ title=""
+            } else if (textMatch) {
+                name = PluginUtils.cleanText(textMatch[1]);
+            }
+            
+            // Loại trừ các nút dạng "Xem ngay", "Xem phim" (Không phải là số tập)
+            if (!name || name.toLowerCase().indexOf('xem') !== -1 || name.toLowerCase().indexOf('play') !== -1) continue;
+            
+            // Định dạng lại tên tập: "279" -> "Tập 279"
+            if (!isNaN(name)) name = "Tập " + name;
+            
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            // Phải chứa "-tap-" thì mới đúng là link của từng tập
+            if (slug.indexOf('-tap-') !== -1 && !seenEp[slug]) {
+                episodes.push({
+                    id: slug,
+                    name: name,
+                    slug: slug
+                });
+                seenEp[slug] = true;
             }
         }
         
-        // Đảo ngược lại mảng vì web hiển thị tập mới nhất trên cùng (279 -> 1) 
-        // Vax cần thứ tự tập cũ đến mới (1 -> 279)
-        episodes.reverse();
+        // AnimeHay tự động sắp xếp tập mới nhất nằm trên cùng. Đảo lại cho đúng chiều (1 -> End)
+        if (episodes.length > 1) {
+            var firstMatch = episodes[0].name.match(/\d+/);
+            var lastMatch = episodes[episodes.length - 1].name.match(/\d+/);
+            if (firstMatch && lastMatch && parseInt(firstMatch[0], 10) > parseInt(lastMatch[0], 10)) {
+                episodes.reverse();
+            }
+        }
 
         var servers = [];
         if (episodes.length > 0) {
@@ -218,7 +226,7 @@ function parseMovieDetail(html) {
             description: desc,
             servers: servers,
             quality: "HD",
-            lang: "Vietsub",
+            lang: "Vietsub / Thuyết Minh",
             year: 0
         });
     } catch (e) {
@@ -226,15 +234,15 @@ function parseMovieDetail(html) {
     }
 }
 
-// Lấy link Iframe - Ưu tiên server AHS
 function parseDetailResponse(html) {
     try {
         var streamUrl = "";
         
+        // Trích xuất biến $wp_servers từ mã JS
         var serversMatch = html.match(/var\s+\$wp_servers\s*=\s*({[\s\S]+?});/i);
         if (serversMatch) {
             var serversJsonStr = serversMatch[1];
-            // Ưu tiên bắt thẳng link của server AHS
+            // Ưu tiên Server AHS vì tốc độ nhanh nhất
             var ahsMatch = serversJsonStr.match(/['"]AHS['"]\s*:\s*['"](https?:\/\/[^'"]+)['"]/i);
             if (ahsMatch) {
                 streamUrl = ahsMatch[1];
@@ -257,7 +265,7 @@ function parseDetailResponse(html) {
                 headers: { 
                     "Referer": "https://animehay09.site/",
                     "Origin": "https://animehay09.site",
-                    "User-Agent": "Mozilla/5.0"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 },
                 isEmbed: true 
             });
@@ -269,24 +277,22 @@ function parseDetailResponse(html) {
     }
 }
 
-// Bóc m3u8 từ Iframe ahay.stream
+// Hàm Bóc link m3u8 cực chuẩn cho hệ thống của ahay.stream
 function parseEmbedResponse(html, sourceUrl) {
     try {
         var streamUrl = "";
         
-        // Quét đúng định dạng M3U8_URL mà dev web nhúng trong JS
+        // Web sử dụng biến M3U8_URL trong source
         var m3u8Match = html.match(/M3U8_URL\s*=\s*['"]([^'"]+)['"]/i);
         if (m3u8Match) {
             streamUrl = m3u8Match[1];
         }
         
-        // Fallback quét thẻ file:
         if (!streamUrl) {
             var fileMatch = html.match(/file\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i);
             if (fileMatch) streamUrl = fileMatch[1];
         }
 
-        // Quét tổng quát html nếu 2 lệnh trên xịt
         if (!streamUrl) {
             var genericMatch = html.match(/(https?:\/\/[^"'\s<>]*\.m3u8[^"'\s<>]*)/i);
             if (genericMatch) streamUrl = genericMatch[1];
@@ -298,7 +304,7 @@ function parseEmbedResponse(html, sourceUrl) {
                 isEmbed: false,
                 mimeType: "application/x-mpegURL",
                 headers: {
-                    // Bypass chống hotlink của JWPlayer ahay.stream
+                    // Cực kỳ quan trọng để bypass chống hotlink của ahay.stream
                     "Referer": "https://ahay.stream/",
                     "Origin": "https://ahay.stream",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
