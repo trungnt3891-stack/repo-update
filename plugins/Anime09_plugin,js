@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.6.1", // Tối ưu hóa lại hàm bóc tách tên phim và danh sách tập hiển thị chuẩn trên Vax
+        "version": "1.7.0", // Hoàn thiện tính năng Tìm kiếm và giữ nguyên các tính năng xem phim ổn định
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -59,6 +59,7 @@ function getUrlList(slug, filtersJson) {
     return baseUrl + "/" + slug;
 }
 
+// Cấu hình chuẩn URL Tìm kiếm thông qua GET để Vax cào dữ liệu thành công
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
@@ -142,31 +143,71 @@ function parseListResponse(html) {
     }
 }
 
+// Xử lý riêng kết quả trả về từ trang Tìm kiếm
 function parseSearchResponse(html) {
-    return parseListResponse(html);
+    try {
+        var items = [];
+        var seen = {};
+        
+        // Quét các kết quả phim trong trang tìm kiếm dạng /thong-tin-phim/ hoặc /xem-phim/
+        var regex = /<a[^>]*href=["']([^"']+(?:thong-tin-phim|xem-phim)[^"']+)["'][^>]*title=["']([^"']+)["']/gi;
+        var match;
+        
+        while ((match = regex.exec(html)) !== null) {
+            var url = match[1];
+            var title = match[2].replace(/<[^>]*>/g, '').trim();
+            
+            // Tìm ảnh poster đi kèm trong cùng block
+            var subBlock = html.substring(match.index, match.index + 500);
+            var imgMatch = subBlock.match(/(?:src|data-src)=["']([^"']+)["']/i);
+            var img = imgMatch ? imgMatch[1] : "";
+            
+            if (!img || title.toLowerCase() === "animehay") continue;
+            
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+            
+            if (!seen[slug]) {
+                items.push({
+                    id: slug,
+                    title: title,
+                    posterUrl: img,
+                    backdropUrl: img,
+                    quality: "HD"
+                });
+                seen[slug] = true;
+            }
+        }
+        
+        // Nếu bộ quét trên thiếu, gọi trạm trung chuyển parseListResponse
+        if (items.length === 0) {
+            return parseListResponse(html);
+        }
+
+        return JSON.stringify({
+            items: items,
+            pagination: { currentPage: 1, totalPages: 10, totalItems: items.length, itemsPerPage: 20 }
+        });
+    } catch (e) {
+        return parseListResponse(html);
+    }
 }
 
-// FIX: Xây dựng lại cơ chế bắt thông tin và tập phim chuẩn xác, tránh lỗi hiển thị trên Vax
 function parseMovieDetail(html) {
     try {
-        // Lấy tên phim từ thẻ og:title hoặc thẻ h1 chính
         var ogTitle = html.match(/<meta property="og:title" content="([^"]+)"/i);
-        var title = ogTitle ? ogTitle.1 : "";
+        var title = ogTitle ? ogTitle[1] : "";
         if (!title) {
             var h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
             title = h1Match ? h1Match[1] : "Phim Anime";
         }
         title = PluginUtils.cleanText(title).replace(/\|\| AnimeHay/gi, "").replace(/Phim /gi, "").trim();
 
-        // Lấy ảnh Poster
         var imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
         var poster = imgMatch ? imgMatch[1] : "";
 
-        // Lấy mô tả nội dung
         var descMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
         var desc = descMatch ? PluginUtils.cleanText(descMatch[1]) : "";
 
-        // Trích xuất Slug gốc
         var baseSlug = "animehay-movie";
         var ogUrl = html.match(/<meta property="og:url" content="([^"]+)"/i);
         if (ogUrl) {
