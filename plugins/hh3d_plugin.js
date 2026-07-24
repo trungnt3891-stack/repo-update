@@ -1,5 +1,5 @@
 // =============================================================================
-// CẤU HÌNH TÊN MIỀN - CHỈ CẦN SỬA DÒNG NÀY NẾU WEB ĐỔI ĐỊA CHỈ
+// CẤU HÌNH TÊN MIỀN - CHỈ CẦN SỬA DÒNG NÀY NẾU WEB ĐỔI TÊN MIỀN
 // =============================================================================
 var ROOT_DOMAIN = "https://yanhh3d.ac";
 
@@ -11,8 +11,8 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "description": "Hoạt hình 3D Trung Quốc siêu nét.",
-        "version": "2.0.2", // Phiên bản chuẩn hóa cho iOS VAX
+        "description": "Trang xem phim Hoạt Hình 3D siêu hay.",
+        "version": "2.0.2", 
         "baseUrl": ROOT_DOMAIN, 
         "iconUrl": ROOT_DOMAIN + "/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -37,19 +37,19 @@ function getLISTmenu() {
 }
 
 function buildMenu(listurl) {
-    let menulist = [];
+    var menulist = [];
     if (!listurl) return menulist;
-    let lines = listurl.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
+    var lines = listurl.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
         if (!line || line.indexOf('@@') === -1) continue;
-        let parts = line.split('@@');
-        let link = parts[0] ? parts[0].trim() : "";
-        let name = parts[1] ? parts[1].trim() : "";
-        let check = parts[2] ? parts[2].trim() : undefined;
+        var parts = line.split('@@');
+        var link = parts[0] ? parts[0].trim() : "";
+        var name = parts[1] ? parts[1].trim() : "";
+        var check = parts[2] ? parts[2].trim() : undefined;
         if (!link || !name) continue;
         
-        let item = {};
+        var item = {};
         if (check === "false") {
             item = { "slug": link, "title": name, "type": "Horizontal" };
         } else if (check === "true") {
@@ -76,7 +76,7 @@ function getFilterConfig() {
 }
 
 // =============================================================================
-// URL GENERATION (BẢN AN TOÀN CHO IOS)
+// URL GENERATION 
 // =============================================================================
 
 function getUrlList(slug, filtersJson) {
@@ -104,12 +104,10 @@ function getUrlList(slug, filtersJson) {
         
         var resultUrl = ROOT_DOMAIN;
         if (path) {
-            // Đảm bảo không bị nhân đôi dấu gạch chéo
             if (path.indexOf('/') !== 0) path = '/' + path;
             resultUrl += path;
         }
         
-        // Trang chủ của yanhh3d phân trang bằng /page/x chứ không phải ?page=x
         if (page > 1) {
             resultUrl += "/page/" + page;
         }
@@ -135,7 +133,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS (SỬ DỤNG STRING.SPLIT SIÊU NHẸ ĐỂ KHÔNG TREO IOS)
+// PARSERS (SỬ DỤNG STRING.SPLIT SIÊU TỐC)
 // =============================================================================
 
 var PluginUtils = {
@@ -153,42 +151,47 @@ var PluginUtils = {
 function parseListResponse(html) {
     try {
         var movies = [];
-        // Cắt toàn bộ thẻ div chứa bộ phim (YanHH3D dùng class "halim-item")
-        var parts = html.split('halim-item');
+        // Cắt chuỗi theo thẻ a để cào phim cực nhẹ và nhanh
+        var parts = html.split('<a ');
         
         for (var i = 1; i < parts.length; i++) {
             var p = parts[i];
             
-            // Giới hạn trong thẻ article/div đó
-            var endBlock = p.indexOf('</article>');
-            if (endBlock === -1) endBlock = p.indexOf('</div></div>');
-            if (endBlock !== -1) p = p.substring(0, endBlock);
-            
-            var urlM = p.match(/href=["']([^"']+)["']/i);
-            var imgM = p.match(/src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
-            var titleM = p.match(/title=["']([^"']+)["']/i) || p.match(/<h[23][^>]*>([^<]+)<\/h[23]>/i);
-            var epM = p.match(/class=["'][^"']*(?:episode|status|label)[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|div)>/i);
+            var hrefM = p.match(/href=["']([^"']+)["']/i);
+            if (!hrefM) continue;
+            var url = hrefM[1];
 
-            if (urlM && titleM && imgM) {
-                var url = urlM[1];
-                if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
-                
-                var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                var titleText = PluginUtils.cleanText(titleM[1]);
-                
-                if (!titleText || imgM[1].indexOf('avatar') !== -1) continue;
+            // Bỏ qua các link nhiễu, menu
+            if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
+            if (url === '/' || url === ROOT_DOMAIN || url === ROOT_DOMAIN + '/') continue;
 
-                movies.push({
-                    "id": slug,
-                    "title": titleText,
-                    "posterUrl": imgM[1],
-                    "backdropUrl": imgM[1],
-                    "quality": "HD",
-                    "episode_current": epM ? PluginUtils.cleanText(epM[1]) : "Cập nhật",
-                    "lang": "Vietsub/TM",
-                    "year": 0
-                });
+            var imgM = p.match(/<img[^>]+src=["']([^"']+)["']/i) || p.match(/data-src=["']([^"']+)["']/i);
+            if (!imgM || imgM[1].indexOf('avatar') !== -1) continue;
+
+            var titleM = p.match(/title=["']([^"']+)["']/i) || p.match(/alt=["']([^"']+)["']/i);
+            var titleText = titleM ? titleM[1] : "";
+            if (!titleText) {
+                var endA = p.indexOf('</a>');
+                if (endA !== -1) {
+                    titleText = PluginUtils.cleanText(p.substring(p.indexOf('>') + 1, endA));
+                }
             }
+            if (!titleText) continue;
+
+            var epM = p.match(/class=["'][^"']*(?:ep|episode|label|status)[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|div)>/i);
+            var episode = epM ? PluginUtils.cleanText(epM[1]) : "HD";
+            var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+
+            movies.push({
+                id: slug,
+                title: PluginUtils.cleanText(titleText),
+                posterUrl: imgM[1],
+                backdropUrl: imgM[1],
+                quality: "HD",
+                episode_current: episode,
+                lang: "Vietsub/TM",
+                year: 0
+            });
         }
 
         var currentPage = 1;
@@ -196,14 +199,14 @@ function parseListResponse(html) {
         if (currentMatch) currentPage = parseInt(currentMatch[1], 10);
 
         return JSON.stringify({
-            "items": movies,
-            "pagination": {
-                "currentPage": currentPage,
-                "totalPages": 999, // Cho lướt mỏi tay
-                "itemsPerPage": 20
+            items: movies,
+            pagination: {
+                currentPage: currentPage,
+                totalPages: 100, // Cấp đủ 100 trang để vuốt vô hạn
+                totalItems: 9999,
+                itemsPerPage: 20
             }
         });
-
     } catch (e) {
         return JSON.stringify({ items: [], pagination: { currentPage: 1, totalPages: 1 } });
     }
@@ -213,6 +216,7 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
+// BỘ CÀO TẬP PHIM CHUYÊN SÂU - THUẬT TOÁN TỰ ĐỘNG PHÁT HIỆN TAB
 function parseMovieDetail(htmlContent, url) {
     try {
         var id = url ? url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "") : "";
@@ -227,81 +231,104 @@ function parseMovieDetail(htmlContent, url) {
         var descM = htmlContent.match(/<meta property="og:description" content="([^"]+)"/i) || htmlContent.match(/<div[^>]*class=["'][^"']*desc[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "Không có mô tả.";
 
+        // --- TIỀN XỬ LÝ HTML: Cắt bỏ Sidebar và Footer để tránh cào nhầm "Tập mới nhất"
+        var htmlToParse = htmlContent;
+        var sidebarIdx = htmlToParse.indexOf('id="sidebar"');
+        if (sidebarIdx === -1) sidebarIdx = htmlToParse.indexOf('class="sidebar"');
+        if (sidebarIdx === -1) sidebarIdx = htmlToParse.indexOf('id="right-sidebar"');
+        if (sidebarIdx !== -1) htmlToParse = htmlToParse.substring(0, sidebarIdx);
+        
+        var footerIdx = htmlToParse.indexOf('<footer');
+        if (footerIdx !== -1) htmlToParse = htmlToParse.substring(0, footerIdx);
+
+        // --- THUẬT TOÁN TỰ NHẬN DIỆN SERVER DỰA TRÊN SỰ LẶP LẠI TẬP PHIM ---
         var servers = [];
-        
-        // Cỗ máy hút tập phim siêu nhẹ (Tách Tab Thuyết Minh / Vietsub)
-        var tmPart = htmlContent;
-        var vsPart = "";
-        
-        var vsIdx = htmlContent.indexOf('id="vietsub"');
-        if (vsIdx === -1) vsIdx = htmlContent.indexOf('href="#vietsub"');
-        
-        if (vsIdx !== -1) {
-            tmPart = htmlContent.substring(0, vsIdx);
-            vsPart = htmlContent.substring(vsIdx);
-        }
+        var currentEps = [];
+        var currentSeenNames = {};
+        var serverIndex = 0;
 
-        function extractEps(block) {
-            var episodes = [];
-            var seenEps = {};
-            var aParts = block.split('<a ');
+        var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+        var aMatch;
+        
+        while ((aMatch = aRegex.exec(htmlToParse)) !== null) {
+            var epUrl = aMatch[1];
+            var epDisplay = PluginUtils.cleanText(aMatch[2]);
             
-            for (var i = 1; i < aParts.length; i++) {
-                var p = aParts[i];
-                var urlM = p.match(/href=["']([^"']+)["']/i);
-                if (!urlM) continue;
+            // Loại link thư mục
+            if (epUrl.indexOf('the-loai') !== -1 || epUrl.indexOf('page') !== -1 || epUrl.indexOf('?s=') !== -1) continue;
+            
+            var isEpisode = false;
+            // Dấu hiệu 1: Link chứa tap-, xem-phim, episode
+            if (epUrl.indexOf('tap-') !== -1 || epUrl.indexOf('-tap') !== -1 || epUrl.indexOf('/xem-phim') !== -1 || epUrl.indexOf('episode') !== -1) {
+                isEpisode = true;
+            } 
+            // Dấu hiệu 2: Nút chỉ chứa số hoặc chữ ngắn (VD: 92, 93)
+            else if (!isNaN(epDisplay) && epDisplay.length > 0 && epDisplay.length <= 5) {
+                isEpisode = true;
+            }
+            
+            if (isEpisode && epDisplay.length > 0 && epDisplay.length <= 25) {
+                // Lọc nút "Xem Thuyết Minh", "Xem Ngay", "Trailer"
+                if (epDisplay.toLowerCase().indexOf('xem') !== -1 && epDisplay.length > 10) continue;
+                if (epDisplay.toLowerCase().indexOf('trailer') !== -1) continue;
                 
-                var epUrl = urlM[1];
-                if (epUrl.indexOf('the-loai') !== -1 || epUrl.indexOf('?s=') !== -1 || epUrl.indexOf('page') !== -1) continue;
-
-                var endA = p.indexOf('</a>');
-                if (endA === -1) continue;
+                var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                var baseName = epDisplay;
                 
-                var epText = PluginUtils.cleanText(p.substring(p.indexOf('>') + 1, endA));
-                var isEpisode = false;
-                
-                // Nhận diện link tập (có chữ tap- hoặc episode)
-                if (epUrl.indexOf('tap-') !== -1 || epUrl.indexOf('-tap') !== -1 || epUrl.indexOf('/xem-phim') !== -1 || epUrl.indexOf('episode') !== -1) {
-                    isEpisode = true;
-                } else if (epText.length > 0 && epText.length <= 10 && /\d/.test(epText)) { 
-                    isEpisode = true; 
-                }
-
-                if (isEpisode && epText.length > 0 && epText.length <= 25) {
-                    if (epText.toLowerCase().indexOf('xem') !== -1 && epText.length > 10) continue;
-
-                    var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                    
-                    if (!seenEps[epSlug]) {
-                        if (epText.indexOf('Tập') === -1 && epText.indexOf('Tap') === -1) {
-                            if (!isNaN(epText.charAt(0)) || epText.charAt(0) === '0') epText = "Tập " + epText;
-                        }
-                        episodes.push({ id: epSlug, name: epText, slug: epSlug });
-                        seenEps[epSlug] = true;
+                // Đắp thêm chữ "Tập" cho đẹp
+                if (baseName.indexOf('Tập') === -1 && baseName.indexOf('Tap') === -1) {
+                    if (!isNaN(baseName.charAt(0)) || baseName.charAt(0) === '0') {
+                        baseName = "Tập " + baseName;
                     }
                 }
-            }
-
-            if (episodes.length > 1) {
-                var fM = episodes[0].name.match(/\d+/);
-                var lM = episodes[episodes.length-1].name.match(/\d+/);
-                if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
-                    episodes.reverse();
+                
+                // CỐT LÕI TẠO TAB TỰ ĐỘNG: 
+                // Nếu tập này đã xuất hiện trong Server hiện tại -> Chắc chắn đang sang Tab mới
+                if (currentSeenNames[baseName]) {
+                    servers.push({ episodes: currentEps });
+                    currentEps = [];
+                    currentSeenNames = {};
+                    serverIndex++;
+                }
+                
+                // Thêm tập vào Server hiện tại
+                if (!currentSeenNames[baseName]) {
+                    currentEps.push({ id: epSlug, name: baseName, slug: epSlug });
+                    currentSeenNames[baseName] = true;
                 }
             }
-            return episodes;
+        }
+        
+        // Push nốt Server cuối cùng vào mảng
+        if (currentEps.length > 0) {
+            servers.push({ episodes: currentEps });
+        }
+        
+        // --- CHUẨN HÓA TÊN TAB VÀ SẮP XẾP ---
+        for (var i = 0; i < servers.length; i++) {
+            var eps = servers[i].episodes;
+            
+            // Xếp ngược lại thành thứ tự từ 1 -> Mới nhất (nếu web đang đảo ngược)
+            if (eps.length > 1) {
+                var fM = eps[0].name.match(/\d+/);
+                var lM = eps[eps.length-1].name.match(/\d+/);
+                if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
+                    eps.reverse();
+                }
+            }
+            
+            // Đặt tên Tab siêu chuẩn của YanHH3D (Thường là Thuyết Minh trước, Vietsub sau)
+            if (servers.length === 2) {
+                servers[0].name = "Thuyết Minh";
+                servers[1].name = "Vietsub";
+            } else if (servers.length === 1) {
+                servers[0].name = "Danh Sách Phát";
+            } else {
+                servers[i].name = "Server " + (i + 1);
+            }
         }
 
-        var epTM = extractEps(tmPart);
-        var epVS = extractEps(vsPart);
-
-        if (vsIdx !== -1) {
-            if (epTM.length > 0) servers.push({ name: "Thuyết Minh", episodes: epTM });
-            if (epVS.length > 0) servers.push({ name: "Vietsub", episodes: epVS });
-        } else {
-            if (epTM.length > 0) servers.push({ name: "Danh Sách Tập", episodes: epTM });
-        }
-
+        // --- CỨU CÁNH CHO PHIM LẺ / CHƯA CÓ TẬP ---
         if (servers.length === 0) {
             var watchBtn = htmlContent.match(/href=["']([^"']+)["'][^>]*>.*?Xem/i);
             if (watchBtn && watchBtn[1].indexOf('xem-phim') !== -1) {
@@ -325,15 +352,11 @@ function parseMovieDetail(htmlContent, url) {
             rating: 8.5,
             category: "Hoạt Hình 3D",
             status: servers[0].episodes.length > 0 ? servers[0].episodes.length + " Tập" : "Đang cập nhật",
-            extra: "" // Reset extra để không bị vòng lặp
+            extra: "" 
         });
 
     } catch (e) {
-        return JSON.stringify({
-            id: url || "error",
-            title: "Lỗi",
-            servers: []
-        });
+        return JSON.stringify({ id: url || "error", title: "Lỗi", servers: [] });
     }
 }
 
@@ -368,7 +391,7 @@ function parseDetailResponse(html, url) {
                 headers: { 
                     "Referer": ROOT_DOMAIN + "/",
                     "Origin": ROOT_DOMAIN,
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 },
                 isEmbed: false 
             });
