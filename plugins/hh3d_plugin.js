@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.0.0", // Cập nhật version để App xóa bộ nhớ đệm
+        "version": "3.0.0", // Cập nhật version để App xóa cache cũ
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -50,7 +50,6 @@ function getUrlList(slug, filtersJson) {
     var page = filters.page || 1;
     var baseUrl = "https://yanhh3d.ac";
     
-    // ĐÃ FIX: Điều hướng trang chủ đúng chuẩn
     if (!slug || slug === 'home') {
         if (page === 1) return baseUrl + "/";
         return baseUrl + "/page/" + page;
@@ -100,8 +99,6 @@ function parseListResponse(html) {
     try {
         var movies = [];
         var seen = {};
-        
-        // Hút toàn bộ thẻ a có chứa ảnh bên trong để làm danh sách phim
         var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
         var aMatch;
 
@@ -109,19 +106,15 @@ function parseListResponse(html) {
             var url = aMatch[1];
             var inner = aMatch[2];
 
-            // Bỏ qua các link nhiễu (danh mục, trang, tab)
             if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
             if (url === '/' || url.indexOf('yanhh3d.ac') === url.length - 10) continue;
 
-            // Kiểm tra xem thẻ a này có ảnh không (phân biệt phim với text thường)
             var imgMatch = inner.match(/<img[^>]+src=["']([^"']+)["']/i) || inner.match(/data-src=["']([^"']+)["']/i);
             if (!imgMatch || imgMatch[1].indexOf('avatar') !== -1) continue;
 
-            // Cào tên phim
             var titleMatch = inner.match(/<h[23][^>]*>([^<]+)<\/h[23]>/i) || inner.match(/title=["']([^"']+)["']/i) || inner.match(/alt=["']([^"']+)["']/i);
             var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]) : "";
             
-            // Cào số tập hiện tại
             var epMatch = inner.match(/<span[^>]*class=["'][^"']*(ep|episode|label|status)[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) 
                        || inner.match(/<div[^>]*class=["'][^"']*(ep|episode|label|status)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
             var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
@@ -142,7 +135,6 @@ function parseListResponse(html) {
             }
         }
 
-        // Fake phân trang để lướt thoải mái
         var currentPage = 1;
         var currentMatch = html.match(/class=["'][^"']*current[^"']*["'][^>]*>(\d+)</i);
         if (currentMatch) currentPage = parseInt(currentMatch[1], 10);
@@ -151,7 +143,7 @@ function parseListResponse(html) {
             items: movies,
             pagination: {
                 currentPage: currentPage,
-                totalPages: 100, // Hardcode 100 trang để cuộn vô hạn
+                totalPages: 100, 
                 totalItems: 9999,
                 itemsPerPage: 20
             }
@@ -177,59 +169,84 @@ function parseMovieDetail(html) {
         var descM = html.match(/<meta property="og:description" content="([^"]+)"/i) || html.match(/<div[^>]*class=["'][^"']*desc[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "";
 
-        var episodes = [];
-        var seenEps = {};
+        // =====================================================================
+        // BỘ HÚT TẬP PHIM CHUYÊN SÂU
+        // =====================================================================
         
-        // Quét siêu chính xác: moi tất cả link tập (Nút Xem, Số Tập) có trong HTML
-        var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-        var aMatch;
+        // Chia HTML làm 2 nửa để lọc tab Thuyết Minh và Vietsub
+        var tmPart = html;
+        var vsPart = "";
         
-        while ((aMatch = aRegex.exec(html)) !== null) {
-            var epUrl = aMatch[1];
-            var rawInner = aMatch[2];
-            var epDisplay = PluginUtils.cleanText(rawInner);
-            
-            var isEpisode = false;
-            
-            // Điều kiện nhận diện 1 nút là Nút Tập Phim
-            if (epUrl.indexOf('tap-') !== -1 || epUrl.indexOf('/xem-phim') !== -1 || epUrl.indexOf('episode') !== -1) {
-                isEpisode = true;
-            } else if (epDisplay.toLowerCase().indexOf('xem thuyết minh') !== -1 || epDisplay.toLowerCase().indexOf('xem vietsub') !== -1 || epDisplay.toLowerCase().indexOf('xem ngay') !== -1) {
-                isEpisode = true;
-            } else if (!isNaN(epDisplay) && epDisplay.length > 0 && epDisplay.length < 5) { 
-                isEpisode = true; // Bắt các nút chứa số (ví dụ: 90, 91, 92)
-            }
-
-            if (isEpisode && epDisplay.length > 0 && epDisplay.length < 30) {
-                var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
-                
-                if (!seenEps[epSlug]) {
-                    // Chuẩn hóa tên tập (92 -> Tập 92)
-                    if (epDisplay.toLowerCase().indexOf('xem') === -1 && epDisplay.indexOf('Tập') === -1 && epDisplay.indexOf('Tap') === -1 && !isNaN(epDisplay.charAt(0))) {
-                        epDisplay = "Tập " + epDisplay;
-                    }
-                    episodes.push({
-                        id: epSlug,
-                        name: epDisplay,
-                        slug: epSlug
-                    });
-                    seenEps[epSlug] = true;
-                }
-            }
+        var splitVS = html.split(/id=["'][^"']*vietsub[^"']*["']|Vietsub/i);
+        if (splitVS.length > 1) {
+            tmPart = splitVS[0];
+            vsPart = splitVS.slice(1).join(" ");
         }
 
-        var servers = [];
-        if (episodes.length > 0) {
-            // Sắp xếp các tập theo thứ tự cũ lên trước nếu web đang để lộn ngược
-            var fM = episodes[0].name.match(/\d+/);
-            var lM = episodes[episodes.length-1].name.match(/\d+/);
-            if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
-                episodes.reverse();
+        // Hàm cục bộ trích xuất các tập phim từ một đoạn HTML
+        function extractEps(htmlPart) {
+            var eps = [];
+            var seen = {};
+            var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+            var aMatch;
+            
+            while ((aMatch = aRegex.exec(htmlPart)) !== null) {
+                var epUrl = aMatch[1];
+                var rawText = PluginUtils.cleanText(aMatch[2]);
+                
+                // Chỉ lấy link có chứa xem-phim hoặc tap-
+                if (epUrl.indexOf('/xem-phim') !== -1 || epUrl.indexOf('tap-') !== -1) {
+                    // CỰC KỲ QUAN TRỌNG: Lọc bỏ các nút "Xem Thuyết Minh", "Xem Ngay"
+                    if (rawText.toLowerCase().indexOf('xem ') !== -1 || rawText.length > 15) continue;
+                    
+                    var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                    
+                    if (!seen[epSlug]) {
+                        // Thêm chữ "Tập" nếu nó chỉ là 1 con số (như 92, 91)
+                        if (!isNaN(rawText)) {
+                            rawText = "Tập " + rawText;
+                        } else if (rawText.indexOf('Tập') === -1 && rawText.indexOf('Tap') === -1) {
+                            rawText = "Tập " + rawText;
+                        }
+                        
+                        eps.push({ id: epSlug, name: rawText, slug: epSlug });
+                        seen[epSlug] = true;
+                    }
+                }
             }
-            servers.push({ name: "Danh sách phát", episodes: episodes });
-        } else {
-            // Bảo hiểm an toàn nếu bị ẩn danh sách: Thêm 1 nút "Xem Phim" ép chạy
-            servers.push({ name: "Hệ Thống", episodes: [{id: "", name: "Xem Phim", slug: ""}]});
+            
+            // Sắp xếp tự động xuôi từ Tập 1 -> Tập mới nhất
+            if (eps.length > 1) {
+                var fM = eps[0].name.match(/\d+/);
+                var lM = eps[eps.length-1].name.match(/\d+/);
+                if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
+                    eps.reverse();
+                }
+            }
+            return eps;
+        }
+
+        var epTM = extractEps(tmPart);
+        var epVS = extractEps(vsPart);
+        
+        var servers = [];
+        if (epTM.length > 0) servers.push({ name: "Thuyết Minh", episodes: epTM });
+        if (epVS.length > 0) servers.push({ name: "Vietsub", episodes: epVS });
+        
+        // Cứu cánh: Nếu web không chia tab, quét gộp toàn trang
+        if (servers.length === 0) {
+            var allEps = extractEps(html);
+            if (allEps.length > 0) {
+                servers.push({ name: "Danh Sách Tập", episodes: allEps });
+            } else {
+                // Nếu tìm cả trang vẫn không ra tập nào (nghĩa là đang ở trang phim 1 tập)
+                // Ép App hiện 1 nút "Xem Phim" để bấm được
+                var watchBtn = html.match(/href=["']([^"']+)["'][^>]*>.*?Xem/i);
+                if (watchBtn && watchBtn[1].indexOf('xem-phim') !== -1) {
+                    var wSlug = watchBtn[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
+                    servers.push({ name: "Hệ Thống", episodes: [{id: wSlug, name: "Xem Ngay", slug: wSlug}]});
+                }
+            }
         }
 
         return JSON.stringify({
@@ -244,7 +261,7 @@ function parseMovieDetail(html) {
             year: 0,
             rating: 0,
             category: "Hoạt Hình 3D",
-            status: episodes.length + " Tập"
+            status: "Đang cập nhật"
         });
     } catch (e) {
         return JSON.stringify({});
@@ -255,19 +272,14 @@ function parseDetailResponse(html) {
     try {
         var streamUrl = "";
         
-        // 1. Quét thẳng link m3u8 nằm trong html (Phổ biến nhất ở YanHH3D)
         var m3u8Match = html.match(/(https?:\/\/[^"'\s<>]*\.m3u8[^"'\s<>]*)/i);
-        if (m3u8Match) {
-            streamUrl = m3u8Match[1].replace(/\\/g, "");
-        }
+        if (m3u8Match) streamUrl = m3u8Match[1].replace(/\\/g, "");
         
-        // 2. Thử tìm link mp4
         if (!streamUrl) {
             var mp4Match = html.match(/(https?:\/\/[^"'\s<>]*\.mp4[^"'\s<>]*)/i);
             if (mp4Match) streamUrl = mp4Match[1].replace(/\\/g, "");
         }
 
-        // 3. Quét Iframe nhúng phòng hờ
         if (!streamUrl) {
             var iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
             if (iframeMatch) {
@@ -276,7 +288,7 @@ function parseDetailResponse(html) {
                 return JSON.stringify({
                     url: streamUrl,
                     headers: { "Referer": "https://yanhh3d.ac/" },
-                    isEmbed: true // Kích hoạt parseEmbedResponse
+                    isEmbed: true 
                 });
             }
         }
@@ -287,7 +299,7 @@ function parseDetailResponse(html) {
                 headers: { 
                     "Referer": "https://yanhh3d.ac/",
                     "Origin": "https://yanhh3d.ac",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    "User-Agent": "Mozilla/5.0"
                 },
                 isEmbed: false 
             });
@@ -322,13 +334,14 @@ function parseEmbedResponse(html, sourceUrl) {
                 }
             });
         }
+
         return JSON.stringify({ url: "", isEmbed: false });
     } catch (e) {
         return JSON.stringify({ url: "", isEmbed: false });
     }
 }
 
-// CÁC HÀM BẮT BUỘC ĐỂ TRÁNH LỖI "FILE KHÔNG HỢP LỆ" TRÊN VAX
+// CÁC HÀM BẮT BUỘC ĐỂ TRÁNH LỖI FILE KHÔNG HỢP LỆ TRÊN VAX
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
