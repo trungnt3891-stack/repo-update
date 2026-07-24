@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.1.0", // Cập nhật version để App xóa bộ nhớ đệm
+        "version": "2.2.0", // Đã tăng version để App xóa cache
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -170,11 +170,11 @@ function parseMovieDetail(html) {
         var descM = html.match(/<meta property="og:description" content="([^"]+)"/i) || html.match(/<div[^>]*class=["'][^"']*desc[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "";
 
-        // Phân tách tập phim theo dạng Vietsub và Thuyết Minh
         var vietsubEpisodes = [];
         var thuyetMinhEpisodes = [];
-        var seenVietsub = {};
-        var seenThuyetMinh = {};
+        
+        // Dùng object để theo dõi trùng lặp theo từng server
+        var seenEps = { vietsub: {}, tm: {} };
 
         var aRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
         var aMatch;
@@ -183,50 +183,84 @@ function parseMovieDetail(html) {
             var epUrl = aMatch[1];
             var rawInner = aMatch[2];
             var epDisplay = PluginUtils.cleanText(rawInner);
+            var lowerDisplay = epDisplay.toLowerCase();
             
-            var isEpisode = false;
-            
-            if (epUrl.indexOf('tap-') !== -1 || epUrl.indexOf('/xem-phim') !== -1 || epUrl.indexOf('episode') !== -1) {
-                isEpisode = true;
-            } else if (!isNaN(epDisplay) && epDisplay.length > 0 && epDisplay.length < 5) { 
-                isEpisode = true; 
+            // 1. CHẶN NÚT NHIỄU: Bỏ qua các nút Tab hoặc text không phải tập phim
+            if (lowerDisplay === 'vietsub' || lowerDisplay === 'thuyết minh' || 
+                lowerDisplay === 'xem vietsub' || lowerDisplay === 'xem thuyết minh' || 
+                lowerDisplay === 'trailer' || lowerDisplay === 'download') {
+                continue;
+            }
+            // Bỏ qua các link có dấu # hoặc mã javascript
+            if (epUrl.indexOf('#') === 0 || epUrl.indexOf('javascript') === 0) {
+                continue;
             }
 
+            var isEpisode = false;
+            
+            // 2. NHẬN DIỆN TẬP PHIM CHUẨN XÁC
+            if (epUrl.indexOf('/tap-') !== -1 || epUrl.indexOf('-tap-') !== -1 || epUrl.indexOf('/episode') !== -1) {
+                isEpisode = true;
+            } else if (!isNaN(epDisplay) && epDisplay.length > 0 && epDisplay.length <= 4) {
+                isEpisode = true; // Bắt các nút dạng số nguyên (VD: 1, 2, 183)
+            } else if (lowerDisplay.indexOf('tập') !== -1 || lowerDisplay === 'full' || lowerDisplay === 'xem ngay') {
+                isEpisode = true;
+            }
+
+            // 3. XỬ LÝ VÀ PHÂN LOẠI
             if (isEpisode && epDisplay.length > 0 && epDisplay.length < 30) {
                 var epSlug = epUrl.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
                 
-                if (epDisplay.toLowerCase().indexOf('xem') === -1 && epDisplay.indexOf('Tập') === -1 && epDisplay.indexOf('Tap') === -1 && !isNaN(epDisplay.charAt(0))) {
+                // Căn chỉnh tên hiển thị cho đẹp ("183" -> "Tập 183")
+                if (!isNaN(epDisplay)) {
                     epDisplay = "Tập " + epDisplay;
                 }
 
-                // Kiểm tra xem là Vietsub hay Thuyết Minh dựa vào đường dẫn hoặc tên hiển thị
-                var isTM = epUrl.indexOf('thuyet-minh') !== -1 || epUrl.indexOf('sever2') !== -1 || rawInner.toLowerCase().includes('thuyết minh');
+                // Nhận diện Server: Link có chứa '/sever2/' là Vietsub, mặc định còn lại là Thuyết Minh
+                var isVietsub = epUrl.indexOf('/sever2/') !== -1 || epUrl.indexOf('-vietsub') !== -1;
 
-                if (isTM) {
-                    if (!seenThuyetMinh[epSlug]) {
-                        thuyetMinhEpisodes.push({ id: epSlug, name: epDisplay, slug: epSlug });
-                        seenThuyetMinh[epSlug] = true;
+                if (isVietsub) {
+                    if (!seenEps.vietsub[epSlug]) {
+                        vietsubEpisodes.push({ id: epSlug, name: epDisplay, slug: epSlug });
+                        seenEps.vietsub[epSlug] = true;
                     }
                 } else {
-                    if (!seenVietsub[epSlug]) {
-                        vietsubEpisodes.push({ id: epSlug, name: epDisplay, slug: epSlug });
-                        seenVietsub[epSlug] = true;
+                    if (!seenEps.tm[epSlug]) {
+                        thuyetMinhEpisodes.push({ id: epSlug, name: epDisplay, slug: epSlug });
+                        seenEps.tm[epSlug] = true;
                     }
                 }
             }
         }
 
-        // Fallback nếu không quét được phân loại rõ ràng, đưa hết vào chung 1 list
+        // Hàm hỗ trợ sắp xếp tập phim xuôi chiều (phòng trường hợp web xếp ngược 183 -> 1)
+        function sortEpisodes(eps) {
+            if (eps.length > 1) {
+                var fM = eps[0].name.match(/\d+/);
+                var lM = eps[eps.length-1].name.match(/\d+/);
+                if (fM && lM && parseInt(fM[0], 10) > parseInt(lM[0], 10)) {
+                    eps.reverse();
+                }
+            }
+            return eps;
+        }
+
+        vietsubEpisodes = sortEpisodes(vietsubEpisodes);
+        thuyetMinhEpisodes = sortEpisodes(thuyetMinhEpisodes);
+
+        // Đề phòng phim lẻ chỉ có 1 nút "Xem Phim"
         if (vietsubEpisodes.length === 0 && thuyetMinhEpisodes.length === 0) {
-            vietsubEpisodes.push({ id: "", name: "Xem Phim", slug: "" });
+            thuyetMinhEpisodes.push({ id: "", name: "Xem Phim", slug: "" });
         }
 
         var servers = [];
-        if (vietsubEpisodes.length > 0) {
-            servers.push({ name: "Vietsub", episodes: vietsubEpisodes });
-        }
+        
+        // Đưa Thuyết Minh lên trước vì là thể loại 3D phổ biến
         if (thuyetMinhEpisodes.length > 0) {
             servers.push({ name: "Thuyết Minh", episodes: thuyetMinhEpisodes });
+        }
+        if (vietsubEpisodes.length > 0) {
+            servers.push({ name: "Vietsub", episodes: vietsubEpisodes });
         }
 
         return JSON.stringify({
