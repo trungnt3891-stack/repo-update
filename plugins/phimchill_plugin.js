@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "6.0.0",             
+        "version": "7.0.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -174,7 +174,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM - TỰ ĐỘNG ĐIỀU HƯỚNG VÀO TRANG XEM PHIM ĐỂ CÀO ĐỦ TẬP
+// PARSER CHI TIẾT PHIM & BÓC TÁCH CHUẨN XÁC TOÀN BỘ TẬP TỪ TRANG XEM PHIM
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -207,8 +207,9 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // 1. Quét toàn bộ các nút chọn tập hiển thị trong trang HTML hiện tại
-        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        // 1. Quét tất cả các thẻ <a> có chứa đường dẫn tập phim thực tế trong trang
+        // Phù hợp với định dạng link tập như: href="https://phimchillhdk.im/phim/vo-thuong-than-de/tap-1_1355113.html"
+        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-\d+_[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
             var epUrl = match[1].trim();
@@ -218,11 +219,10 @@ function parseMovieDetail(htmlContent, url) {
                 epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            // Chỉ lấy các link tập phim thực tế (có chứa chữ tap-)
-            if (epUrl.indexOf('tap-') !== -1 && !seenEp[epUrl]) {
+            if (!seenEp[epUrl]) {
                 var numMatch = epUrl.match(/tap-(\d+)/i);
                 var epNumVal = numMatch ? parseInt(numMatch[1], 10) : (!isNaN(epText) ? parseInt(epText, 10) : 0);
-                var formattedName = epNumVal > 0 ? ("Tập " + (epNumVal < 10 ? "0" + epNumVal : epNumVal)) : (epText || "Tập");
+                var formattedName = epNumVal > 0 ? ("Tập " + epNumVal) : (epText || "Tập");
 
                 episodes.push({
                     id: epUrl,
@@ -233,24 +233,23 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
-        // 2. TRƯỜNG HỢP ĐANG Ở TRANG THÔNG TIN (CHƯA CÓ NÚT TẬP): 
-        // Tự động tìm link nút "Xem Phim" để app Vax lập tức chuyển hướng tải nội dung trang xem phim bên trong
-        var redirectPlayUrl = "";
+        // 2. Dự phòng: Nếu trang đang đứng là trang thông tin chung (chưa có danh sách tập), tự động điều hướng sang tập 1
+        var redirectUrl = "";
         if (episodes.length === 0) {
-            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1[^"]*)"/i) || 
+            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1_[^"]+\.html)"/i) || 
                                htmlContent.match(/href="([^"]+\/tap-1[^"]*)"/i) ||
                                htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
             if (xemPhimMatch) {
-                redirectPlayUrl = xemPhimMatch[1];
-                if (redirectPlayUrl.indexOf('http') !== 0) {
-                    redirectPlayUrl = BASEURL + (redirectPlayUrl.startsWith('/') ? '' : '/') + redirectPlayUrl;
+                redirectUrl = xemPhimMatch[1];
+                if (redirectUrl.indexOf('http') !== 0) {
+                    redirectUrl = BASEURL + (redirectUrl.startsWith('/') ? '' : '/') + redirectUrl;
                 }
             }
         }
 
         var servers = [];
         if (episodes.length > 0) {
-            // Sắp xếp thứ tự tập từ 1 đến N chuẩn xác
+            // Sắp xếp thứ tự từ tập 1 đến tập N chuẩn xác
             episodes.sort(function(a, b) {
                 var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
                 var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
@@ -261,11 +260,10 @@ function parseMovieDetail(htmlContent, url) {
                 name: "Danh Sách Vietsub",
                 episodes: episodes
             });
-        } else if (redirectPlayUrl) {
-            // Đẩy link trang xem phim vào ID tập đầu tiên để app tự động truy cập sâu vào bên trong lấy danh sách đầy đủ
+        } else if (redirectUrl) {
             servers.push({
                 name: "Danh Sách Vietsub",
-                episodes: [{ id: redirectPlayUrl, name: "Tập 01", slug: "tap-1" }]
+                episodes: [{ id: redirectUrl, name: "Tập 1", slug: "tap-1" }]
             });
         } else {
             servers.push({
