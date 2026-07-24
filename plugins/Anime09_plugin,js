@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.4.1", // Sửa lỗi quét nhầm tập phim rác từ các mục khác
+        "version": "1.4.2", // Lọc sạch tuyệt đối các chuỗi trạng thái tập phim rác (có chứa / hoặc ??)
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -146,7 +146,6 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
-// ĐÃ SỬA: Lọc chính xác các tập phim chuẩn, loại bỏ hoàn toàn số tập rác của phim khác
 function parseMovieDetail(html) {
     try {
         var titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i);
@@ -167,13 +166,9 @@ function parseMovieDetail(html) {
         var episodes = [];
         var seenEp = {};
         
-        // Chỉ quét các khối có chứa class "wp-ep" hoặc nằm trong khu vực danh sách tập
         var aTags = html.split(/<a\s+/i);
         for (var i = 1; i < aTags.length; i++) {
             var aTag = aTags[i];
-            
-            // Bắt buộc phải là thẻ của tập phim AnimeHay (có class wp-ep)
-            if (aTag.indexOf('wp-ep') === -1) continue;
             
             var hrefMatch = aTag.match(/href=["']([^"']+\/xem-phim\/[^"']+)["']/i);
             if (!hrefMatch) continue;
@@ -181,10 +176,20 @@ function parseMovieDetail(html) {
             var url = hrefMatch[1];
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
-            // Lấy số tập chuẩn từ URL (ví dụ: the-gioi-hoan-my-tap-43-50840.html -> lấy được số 43)
+            // Chỉ lấy các link đích thực là tập phim (có chứa chữ tap-)
+            if (slug.indexOf('-tap-') === -1) continue;
+
             var numMatch = slug.match(/tap-(\d+)/i);
             if (!numMatch) continue;
             var epNum = numMatch[1];
+            
+            // Lọc bỏ các giá trị rác bị dính định dạng dạng phân số hoặc chứa ký tự đặc biệt lạ
+            var textMatch = aTag.match(/>([\s\S]*?)<\/a>/i);
+            var rawText = textMatch ? PluginUtils.cleanText(textMatch[1]) : "";
+            
+            if (rawText.indexOf('/') !== -1 || rawText.indexOf('??') !== -1) {
+                continue; // Bỏ qua các nhãn trạng thái kiểu 87/129 hoặc 3/??
+            }
             
             if (epNum && !seenEp[slug]) {
                 episodes.push({
@@ -196,7 +201,7 @@ function parseMovieDetail(html) {
             }
         }
         
-        // Sắp xếp lại danh sách tập theo thứ tự tăng dần từ 1 -> N
+        // Sắp xếp tập xuôi chiều từ 1 -> N
         if (episodes.length > 1) {
             episodes.sort(function(a, b) {
                 var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
@@ -234,7 +239,6 @@ function parseMovieDetail(html) {
     }
 }
 
-// Lấy link Iframe - Ưu tiên server AHS
 function parseDetailResponse(html) {
     try {
         var streamUrl = "";
@@ -276,7 +280,6 @@ function parseDetailResponse(html) {
     }
 }
 
-// Bóc m3u8 từ Iframe ahay.stream
 function parseEmbedResponse(html, sourceUrl) {
     try {
         var streamUrl = "";
