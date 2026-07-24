@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "7.0.0",             
+        "version": "7.1.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS
+// PARSERS - TỐI ƯU QUÉT TRANG CHỦ & DANH MỤC KHÔNG BỊ SÓT PHIM
 // =============================================================================
 
 function parseListResponse(html) {
@@ -112,28 +112,39 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        var articleRegex = /<article[\s\S]*?<\/article>/gi;
-        var articles = html.match(articleRegex) || [];
+        // Mở rộng bộ quét: Bắt đồng thời <article>, <li> và các khối div bọc phim
+        var blockRegex = /<article[\s\S]*?<\/article>|<li[^>]*>[\s\S]*?<\/li>|<div class="[^"]*item[^"]*">[\s\S]*?<\/div>/gi;
+        var blocks = html.match(blockRegex) || [];
 
-        for (var i = 0; i < articles.length; i++) {
-            var block = articles[i];
+        // Nếu số block quét được quá ít, fallback quét toàn bộ các thẻ <a> có chứa hình ảnh và title
+        if (blocks.length < 5) {
+            blockRegex = /<a[^>]*title="[^"]+"[^>]*href="[^"]+\/phim\/[^"]+"[\s\S]*?<\/a>/gi;
+            blocks = html.match(blockRegex) || [];
+        }
+
+        for (var i = 0; i < blocks.length; i++) {
+            var block = blocks[i];
 
             var hrefMatch = block.match(/href="([^"]+)"/i);
             if (!hrefMatch) continue;
             var href = hrefMatch[1].trim();
 
+            // Loại bỏ các link danh mục, thể loại, trang chủ
             if (href.indexOf("/the-loai/") !== -1 || href.indexOf("/quoc-gia/") !== -1 || href.indexOf("/danh-sach/") !== -1 || href === BASEURL || href === BASEURL + "/") {
                 continue;
             }
 
-            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h[34][^>]*>([\s\S]*?)<\/h[34]>/i);
             if (!titleMatch) continue;
             var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
 
             if (!title || title === "Video không tiêu đề" || title.length < 2) continue;
 
-            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i);
-            var posterUrl = srcMatch ? srcMatch[1].trim() : "";
+            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i) || block.match(/background:\s*url\(([^)]+)\)/i);
+            var posterUrl = "";
+            if (srcMatch) {
+                posterUrl = srcMatch[1].replace(/['"]/g, "").trim();
+            }
 
             if (posterUrl) {
                 if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
@@ -174,7 +185,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & BÓC TÁCH CHUẨN XÁC TOÀN BỘ TẬP TỪ TRANG XEM PHIM
+// PARSER CHI TIẾT PHIM & DANH SÁCH TẬP
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -207,8 +218,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // 1. Quét tất cả các thẻ <a> có chứa đường dẫn tập phim thực tế trong trang
-        // Phù hợp với định dạng link tập như: href="https://phimchillhdk.im/phim/vo-thuong-than-de/tap-1_1355113.html"
+        // Quét toàn bộ các link tập phim thực tế trong trang
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-\d+_[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -233,7 +243,6 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
-        // 2. Dự phòng: Nếu trang đang đứng là trang thông tin chung (chưa có danh sách tập), tự động điều hướng sang tập 1
         var redirectUrl = "";
         if (episodes.length === 0) {
             var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1_[^"]+\.html)"/i) || 
@@ -249,7 +258,6 @@ function parseMovieDetail(htmlContent, url) {
 
         var servers = [];
         if (episodes.length > 0) {
-            // Sắp xếp thứ tự từ tập 1 đến tập N chuẩn xác
             episodes.sort(function(a, b) {
                 var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
                 var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
