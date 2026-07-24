@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "2.0.3",             
+        "version": "2.0.5",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - TỐI ƯU LOAD TRANG CHỦ & THƯ MỤC
+// PARSERS - LOAD TRANG CHỦ & THƯ MỤC
 // =============================================================================
 
 function parseListResponse(html) {
@@ -127,6 +127,9 @@ function parseListResponse(html) {
             } else if (posterUrl.indexOf('http') !== 0 && posterUrl.indexOf('//') !== 0) {
                 posterUrl = BASEURL + "/" + posterUrl;
             }
+
+            // Đảm bảo chỉ lấy link trang thông tin phim gốc (không lấy link tập lẻ)
+            if (url.indexOf("tap-") !== -1) continue;
 
             if (!seen[url]) {
                 items.push({
@@ -155,6 +158,7 @@ function parseListResponse(html) {
                     var img = iMatch ? iMatch[1].trim() : "";
 
                     if (img.indexOf('/') === 0 && img.indexOf('//') !== 0) img = BASEURL + img;
+                    if (link.indexOf("tap-") !== -1) continue;
 
                     if (!seen[link]) {
                         items.push({
@@ -189,7 +193,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & BÓC TÁCH ĐẦY ĐỦ TẤT CẢ CÁC TẬP VÀ SERVER
+// PARSER CHI TIẾT PHIM & ĐỒNG BỘ DANH SÁCH TẬP THỰC TẾ
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -219,84 +223,63 @@ function parseMovieDetail(htmlContent, url) {
         rmatch = htmlContent.match(/meta\s+property="video:actor"\s+content="([^"]+)"/i);
         if (rmatch && rmatch[1]) lactor = rmatch[1];
 
-        var servers = [];
+        var episodes = [];
+        var seenEp = {};
+        
+        // Quét tất cả các thẻ a chứa link tập thực tế trong HTML
+        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
+        var match;
+        while ((match = aRegex.exec(htmlContent)) !== null) {
+            var epUrl = match[1].trim();
+            var epText = match[2].replace(/<[^>]*>/g, '').trim();
 
-        // Quét các khối danh sách server tập phim trên website (ví dụ: Danh Sách KK, Danh Sách NC...)
-        var serverBlockRegex = /<span[^>]*class="[^"]*text-zinc-200[^"]*">([\s\S]*?)<\/span>\s*<div[^>]*class="[^"]*flex\s+row\s+flex-wrap[^"]*">([\s\S]*?)<\/div>/gi;
-        var sMatch;
-        var hasServerBlocks = false;
-
-        while ((sMatch = serverBlockRegex.exec(htmlContent)) !== null) {
-            hasServerBlocks = true;
-            var serverName = sMatch[1].replace(/<[^>]*>/g, '').trim() || "Vietsub";
-            var serverHtml = sMatch[2];
-
-            var episodes = [];
-            var seenEp = {};
-            
-            // Quét tất cả các thẻ a trong khối server đó
-            var aRegex = /<a[^>]*href="([^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
-            var aMatch;
-            while ((aMatch = aRegex.exec(serverHtml)) !== null) {
-                var epUrl = aMatch[1].trim();
-                var epText = aMatch[2].replace(/<[^>]*>/g, '').trim();
-
-                if (epUrl.indexOf('http') !== 0) {
-                    epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
-                }
-
-                if (epText && !seenEp[epUrl]) {
-                    var formattedName = isNaN(epText) ? epText : ("Tập " + epText);
-                    episodes.push({
-                        id: epUrl,
-                        name: formattedName,
-                        slug: epUrl.split('/').pop()
-                    });
-                    seenEp[epUrl] = true;
-                }
+            if (epUrl.indexOf('http') !== 0) {
+                epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            if (episodes.length > 0) {
-                servers.push({
-                    name: serverName,
-                    episodes: episodes
+            if (!seenEp[epUrl]) {
+                var numMatch = epUrl.match(/tap-([^_]+)/i);
+                var formattedName = numMatch ? ("Tập " + numMatch[1].replace(/-/g, ' ')) : (epText || "Tập");
+
+                episodes.push({
+                    id: epUrl,
+                    name: formattedName,
+                    slug: epUrl.split('/').pop()
                 });
+                seenEp[epUrl] = true;
             }
         }
 
-        // Dự phòng nếu trang phim không khớp cấu trúc trên, quét toàn bộ link tập có đuôi .html
-        if (servers.length === 0) {
-            var episodesFallback = [];
-            var seenFallback = {};
-            var generalARegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
-            var gMatch;
-            while ((gMatch = generalARegex.exec(htmlContent)) !== null) {
-                var fUrl = gMatch[1].trim();
-                var fText = gMatch[2].replace(/<[^>]*>/g, '').trim();
-
-                if (fUrl.indexOf('http') !== 0) fUrl = BASEURL + (fUrl.startsWith('/') ? '' : '/') + fUrl;
-
-                if ((fText && !isNaN(fText) || fUrl.indexOf('tap-') !== -1) && !seenFallback[fUrl]) {
-                    episodesFallback.push({
-                        id: fUrl,
-                        name: isNaN(fText) ? (fText || "Tập") : ("Tập " + fText),
-                        slug: fUrl.split('/').pop()
-                    });
-                    seenFallback[fUrl] = true;
+        // Nếu ở trang thông tin chung chưa có sẵn tập, trích xuất link nút "Xem Phim" để làm ID tập đầu tiên
+        var playBtnMatch = "";
+        if (episodes.length === 0) {
+            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-[^"]*\.html)"/i) || 
+                               htmlContent.match(/href="([^"]+\/tap-[^"]*)"/i) ||
+                               htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
+            if (xemPhimMatch) {
+                playBtnMatch = xemPhimMatch[1];
+                if (playBtnMatch.indexOf('http') !== 0) {
+                    playBtnMatch = BASEURL + (playBtnMatch.startsWith('/') ? '' : '/') + playBtnMatch;
                 }
             }
+        }
 
-            if (episodesFallback.length > 0) {
-                servers.push({
-                    name: "Danh Sách Vietsub",
-                    episodes: episodesFallback
-                });
-            } else {
-                servers.push({
-                    name: "Phim Lẻ",
-                    episodes: [{ id: id, name: "Full", slug: "full" }]
-                });
-            }
+        var servers = [];
+        if (episodes.length > 0) {
+            servers.push({
+                name: "Danh Sách Vietsub",
+                episodes: episodes
+            });
+        } else if (playBtnMatch) {
+            servers.push({
+                name: "Danh Sách Vietsub",
+                episodes: [{ id: playBtnMatch, name: "Xem Phim (Tập Mới Nhất)", slug: "xem-phim" }]
+            });
+        } else {
+            servers.push({
+                name: "Phim Lẻ",
+                episodes: [{ id: id, name: "Full", slug: "full" }]
+            });
         }
 
         return JSON.stringify({
