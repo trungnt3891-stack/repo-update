@@ -4,11 +4,11 @@
 
 function getManifest() {
     return JSON.stringify({
-        "id": "anime",
-        "name": "Anime",
-        "version": "1.0.0",
+        "id": "animehay",
+        "name": "AnimeHay",
+        "version": "1.1.0", // Fix lỗi bóc link M3U8 từ Iframe & Bắt toàn bộ Tập ẩn
         "baseUrl": "https://animehay09.site",
-        "iconUrl": "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/c72e2f68-1a1c-48a2-aa5f-edf7eaaf3548/d77q5ev-af22ff5c-be81-4e24-bf0e-13836c6c939e.png",
+        "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
         "isAdult": false,
         "type": "MOVIE",
@@ -53,7 +53,6 @@ function getUrlList(slug, filtersJson) {
     var page = filters.page || 1;
     var baseUrl = "https://animehay09.site";
     
-    // AnimeHay thường dùng format /trang-2.html cho phân trang
     if (page > 1) {
         return baseUrl + "/" + slug.replace(".html", "") + "/trang-" + page + ".html";
     }
@@ -84,12 +83,23 @@ function getUrlYears() { return ""; }
 // PARSERS
 // =============================================================================
 
+var PluginUtils = {
+    cleanText: function (text) {
+        if (!text) return "";
+        return text.replace(/<[^>]*>/g, "")
+            .replace(/&amp;/g, "&")
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+};
+
 function parseListResponse(html) {
     try {
         var items = [];
         var seen = {};
         
-        // Quét cấu trúc thẻ <a> bao bọc ảnh và lấy thuộc tính của chúng
         var regex = /<a[^>]*href=["']([^"']+)["'][^>]*title=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*(?:data-src|src)=["']([^"']+)["']/gi;
         var match;
         
@@ -98,7 +108,6 @@ function parseListResponse(html) {
             var title = match[2].replace(/<[^>]*>/g, '').trim();
             var img = match[3];
             
-            // Chỉ lấy các thẻ a trỏ về trang thông tin phim (bỏ qua banner qc)
             if (url.indexOf("thong-tin-phim") === -1 && url.indexOf("xem-phim") === -1) continue;
             
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
@@ -134,48 +143,45 @@ function parseListResponse(html) {
 }
 
 function parseSearchResponse(html) {
-    // Gọi lại parseListResponse vì cấu trúc trả về tương tự
     return parseListResponse(html);
 }
 
+// Bắt toàn bộ danh sách tập kể cả khi nhóm tập đang ẩn display:none
 function parseMovieDetail(html) {
     try {
-        // Lấy tên phim chuẩn từ thanh điều hướng (Breadcrumb)
-        var titleMatch = html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i);
-        var title = titleMatch ? titleMatch[1].trim() : "Unknown Title";
+        var titleMatch = html.match(/<a href="[^"]*thong-tin-phim[^"]*">([^<]+)<\/a>\s*›/i) || html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        var title = titleMatch ? PluginUtils.cleanText(titleMatch[1]) : "Unknown Title";
 
-        // Lấy Ảnh bìa
         var imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
         var poster = imgMatch ? imgMatch[1] : "";
 
-        // Lấy Nội dung
         var descMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
-        var desc = descMatch ? descMatch[1].trim() : "";
+        var desc = descMatch ? PluginUtils.cleanText(descMatch[1]) : "";
 
-        // Lấy danh sách Tập Phim
         var episodes = [];
+        // Quét tất cả thẻ <a> có class "wp-ep" (Các nút chọn tập)
         var epRegex = /<a[^>]*href=["'](https?:\/\/[^"']+\/xem-phim\/[^"']+)["'][^>]*class=["'][^"']*wp-ep[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         var seenEp = {};
         
         while ((match = epRegex.exec(html)) !== null) {
             var url = match[1];
-            var name = match[2].replace(/<[^>]*>/g, '').trim(); // VD: 279, 278
+            var rawName = PluginUtils.cleanText(match[2]);
+            var name = isNaN(rawName) ? rawName : ("Tập " + rawName);
             
-            // Lọc id / slug cho Vax
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
             if (!seenEp[slug]) {
                 episodes.push({
                     id: slug,
-                    name: isNaN(name) ? name : ("Tập " + name),
+                    name: name,
                     slug: slug
                 });
                 seenEp[slug] = true;
             }
         }
         
-        // AnimeHay tự động list từ tập mới -> tập cũ, ta reverse lại cho đúng thứ tự
+        // Web xếp tập mới -> tập cũ, ta đảo lại cho đúng thứ tự 1 -> N
         episodes.reverse();
 
         var servers = [];
@@ -187,7 +193,7 @@ function parseMovieDetail(html) {
         }
 
         return JSON.stringify({
-            id: "", // Bypass ID
+            id: "", 
             title: title,
             posterUrl: poster,
             backdropUrl: poster,
@@ -202,22 +208,21 @@ function parseMovieDetail(html) {
     }
 }
 
+// Bắt link iframe (embed) của Server
 function parseDetailResponse(html) {
     try {
         var streamUrl = "";
         
-        // Trích xuất biến $wp_servers từ mã JavaScript chứa danh sách link m3u8 / iframe
+        // Quét object $wp_servers chứa link embed iframe
         var serversMatch = html.match(/var\s+\$wp_servers\s*=\s*({[\s\S]+?});/i);
         if (serversMatch) {
-            var serversJson = serversMatch[1];
-            // Quét và lấy url đầu tiên từ object này (AHS hoặc HY)
-            var linkMatch = serversJson.match(/['"](https?:\/\/[^'"]+)['"]/);
+            var serversJsonStr = serversMatch[1];
+            var linkMatch = serversJsonStr.match(/['"](https?:\/\/[^'"]+)['"]/);
             if (linkMatch) {
                 streamUrl = linkMatch[1];
             }
         }
         
-        // Dự phòng: Lấy trực tiếp từ <iframe> nếu không thấy JSON
         if (!streamUrl) {
             var iframeMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
             if (iframeMatch) {
@@ -226,7 +231,6 @@ function parseDetailResponse(html) {
         }
 
         if (streamUrl) {
-            // Trả về luồng để Embed 
             return JSON.stringify({
                 url: streamUrl,
                 headers: { 
@@ -234,7 +238,7 @@ function parseDetailResponse(html) {
                     "Origin": "https://animehay09.site",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 },
-                isEmbed: true 
+                isEmbed: true // Chuyển sang hàm parseEmbedResponse để bóc m3u8
             });
         }
 
@@ -244,7 +248,49 @@ function parseDetailResponse(html) {
     }
 }
 
-function parseEmbedResponse(html, sourceUrl) { return JSON.stringify({ url: "", isEmbed: false }); }
+// ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT: Bóc link m3u8 từ Iframe ahay.stream
+function parseEmbedResponse(html, sourceUrl) {
+    try {
+        var streamUrl = "";
+        
+        // 1. Ưu tiên quét đúng biến M3U8_URL = '...' (Giống hình bạn gửi)
+        var m3u8Match = html.match(/M3U8_URL\s*=\s*['"]([^'"]+)['"]/i);
+        if (m3u8Match) {
+            streamUrl = m3u8Match[1];
+        }
+        
+        // 2. Dự phòng nếu web đổi tên biến
+        if (!streamUrl) {
+            var fileMatch = html.match(/file\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i);
+            if (fileMatch) streamUrl = fileMatch[1];
+        }
+        
+        // 3. Quét chìm toàn bộ html
+        if (!streamUrl) {
+            var genericMatch = html.match(/(https?:\/\/[^"'\s<>]*\.m3u8[^"'\s<>]*)/i);
+            if (genericMatch) streamUrl = genericMatch[1];
+        }
+
+        if (streamUrl) {
+            return JSON.stringify({
+                url: streamUrl,
+                isEmbed: false, // Báo cho app biết đã lấy được link gốc
+                mimeType: "application/x-mpegURL",
+                headers: {
+                    // Cực kỳ quan trọng: Máy chủ video chỉ cho phép nguồn từ ahay.stream gọi m3u8
+                    "Referer": "https://ahay.stream/",
+                    "Origin": "https://ahay.stream",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+            });
+        }
+        
+        return JSON.stringify({ url: "", isEmbed: false });
+    } catch (e) {
+        return JSON.stringify({ url: "", isEmbed: false });
+    }
+}
+
 function parseCategoriesResponse(html) { return "[]"; }
 function parseCountriesResponse(html) { return "[]"; }
 function parseYearsResponse(html) { return "[]"; }
