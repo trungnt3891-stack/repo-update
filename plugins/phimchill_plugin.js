@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.3.0",             
+        "version": "4.4.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -19,11 +19,13 @@ function getManifest() {
 }
 
 function getHomeSections() {
-    return JSON.stringify([{
-        "slug": "danh-sach/phim-moi.html",
-        "title": "Phim Mới",
-        "type": "Grid"
-    }]);
+    return JSON.stringify([
+        { "slug": "danh-sach/phim-moi.html", "title": "Phim Mới Đề Cử", "type": "Grid" },
+        { "slug": "quoc-gia/han-quoc.html", "title": "Phim Hàn Quốc", "type": "Grid" },
+        { "slug": "quoc-gia/trung-quoc.html", "title": "Phim Trung Quốc", "type": "Grid" },
+        { "slug": "quoc-gia/au-my.html", "title": "Phim Âu Mỹ", "type": "Grid" },
+        { "slug": "danh-sach/phim-le.html", "title": "Top Phim Lẻ", "type": "Grid" }
+    ]);
 }
 
 function getPrimaryCategories() {
@@ -102,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - FIX LOAD TRANG CHỦ MẠNH MẼ HƠN
+// PARSERS - BẮT TRỌN TRANG CHỦ & PHÂN MỤC CHUẨN XÁC
 // =============================================================================
 
 function parseListResponse(html) {
@@ -110,24 +112,23 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét linh hoạt cả thẻ <article> lẫn các khối danh sách <li>
-        var blockRegex = /<article[\s\S]*?<\/article>|<li[\s\S]*?<\/li>/gi;
-        var blocks = html.match(blockRegex) || [];
+        // Quét tất cả các thẻ article hoặc phần tử chứa phim
+        var articleRegex = /<article[\s\S]*?<\/article>|<li[^>]*>[\s\S]*?<\/li>/gi;
+        var articles = html.match(articleRegex) || [];
 
-        for (var i = 0; i < blocks.length; i++) {
-            var block = blocks[i];
+        for (var i = 0; i < articles.length; i++) {
+            var block = articles[i];
 
             var hrefMatch = block.match(/href="([^"]+)"/i);
             if (!hrefMatch) continue;
             var href = hrefMatch[1].trim();
 
-            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h[34][^>]*>([\s\S]*?)<\/h[34]>/i);
+            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h[34][^>]*>([\s\S]*?)<\/h[34]>/i) || block.match(/class="title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
             if (!titleMatch) continue;
             var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
 
             if (!title || title === "Video không tiêu đề" || href.indexOf("dang-nhap") !== -1) continue;
 
-            // Lấy ảnh poster/thumbnail (hỗ trợ cả thuộc tính style background cho dạng list)
             var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i) || block.match(/background:\s*url\(([^)]+)\)/i);
             var posterUrl = "";
             if (srcMatch) {
@@ -265,7 +266,7 @@ function parseMovieDetail(htmlContent, url) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT TẬP PHIM & TRẢ THẲNG LINK STREAM M3U8 (TRÁNH LOAD GIAO DIỆN WEB)
+// PARSER CHI TIẾT TẬP PHIM & TRẢ THẲNG LINK STREAM M3U8
 // =============================================================================
 
 function parseDetailResponse(html, url) {
@@ -274,7 +275,6 @@ function parseDetailResponse(html, url) {
         var mimeType = "application/x-mpegURL";
         var isEmbed = false;
 
-        // Ưu tiên quét chính xác link m3u8 từ thuộc tính data-link của Server
         var m3u8Match = html.match(/data-type="m3u8"[^>]*data-link="([^"]+)"/i) || html.match(/data-link="([^"]+\.m3u8[^"]*)"/i);
         if (m3u8Match) {
             streamUrl = m3u8Match[1];
