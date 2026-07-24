@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "8.0.0",             
+        "version": "2.0.1",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - FIX CHUẨN TỐC ĐỘ LOAD TRANG CHỦ & THƯ MỤC
+// PARSERS - TỐI ƯU LOAD TRANG CHỦ VÀ THƯ MỤC
 // =============================================================================
 
 function parseListResponse(html) {
@@ -112,7 +112,7 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét toàn bộ các thẻ liên kết chứa poster và tiêu đề phim
+        // Quét chuẩn xác tất cả các khối thẻ bài hiển thị phim ngoài trang chủ và danh mục
         var regex = /<a[^>]*href=["']([^"']+\/phim\/[^"']+)["'][^>]*title=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*(?:src|data-src)=["']([^"']+)["']/gi;
         var match;
 
@@ -141,7 +141,7 @@ function parseListResponse(html) {
             }
         }
 
-        // Dự phòng quét dạng khối article nếu regex trên không khớp
+        // Phương án dự phòng quét khối article
         if (items.length === 0) {
             var articleRegex = /<article[\s\S]*?<\/article>/gi;
             var articles = html.match(articleRegex) || [];
@@ -191,7 +191,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & TẬP PHIM
+// PARSER CHI TIẾT PHIM & BÓC ĐỦ SỐ TẬP
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -224,7 +224,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // Quét toàn bộ danh sách tập thực tế từ trong trang xem phim
+        // Quét toàn bộ danh sách tập thực tế từ trong HTML
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-\d+_[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
