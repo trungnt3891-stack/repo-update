@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "5.1.0",             
+        "version": "5.3.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -174,7 +174,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & ĐỒNG BỘ CHÍNH XÁC SỐ TẬP TỪ PHẦN TRẠNG THÁI
+// PARSER CHI TIẾT PHIM & BÓC CHÍNH XÁC SỐ TẬP TỪ PHẦN TRẠNG THÁI
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -207,7 +207,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // 1. Quét các link tập phim thực tế nếu đang đứng ở trang tập phim
+        // 1. Quét các link tập phim thực tế nếu đang ở trang tập phim
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -220,32 +220,37 @@ function parseMovieDetail(htmlContent, url) {
 
             if (epUrl.indexOf('tap-') !== -1 && !seenEp[epUrl]) {
                 var numMatch = epUrl.match(/tap-(\d+)/i);
-                var nameEp = numMatch ? ("Tập " + numMatch[1]) : (!isNaN(epText) ? ("Tập " + epText) : "Tập");
-                
+                var epNumVal = numMatch ? parseInt(numMatch[1], 10) : (!isNaN(epText) ? parseInt(epText, 10) : 0);
+                var formattedName = epNumVal > 0 ? ("Tập " + (epNumVal < 10 ? "0" + epNumVal : epNumVal)) : (epText || "Tập");
+
                 episodes.push({
                     id: epUrl,
-                    name: nameEp,
+                    name: formattedName,
                     slug: epUrl.split('/').pop()
                 });
                 seenEp[epUrl] = true;
             }
         }
 
-        // 2. Nếu đang ở trang thông tin chung, bóc tách chính xác số tập từ phần Trạng Thái / Số Tập
+        // 2. Nếu đang ở trang thông tin, bóc chuẩn số tập phát hành hiện tại từ dòng Trạng thái
         if (episodes.length === 0) {
-            var totalEpisodes = 1;
+            var currentAvailableEpisodes = 1;
 
-            // Quét thông số từ trường Trạng thái hoặc Số Tập
-            var statusMatch = htmlContent.match(/\(\s*\d+\s*\/\s*(\d+)\s*\)/i) || 
-                              htmlContent.match(/Số\s*Tập[\s\S]*?>\s*(\d+)/i) ||
-                              htmlContent.match(/Tập\s*(\d+)\s*Vietsub/i) ||
-                              htmlContent.match(/(\d+)\s*Tập/i);
+            // Tìm khối Trạng thái trong bảng thông tin
+            var statusBlockMatch = htmlContent.match(/Trạng\s*thái[\s\S]*?>([\s\S]*?)<\/(?:div|span|p|td)/i);
+            var statusText = statusBlockMatch ? statusBlockMatch[1] : htmlContent;
 
-            if (statusMatch) {
-                totalEpisodes = parseInt(statusMatch[1], 10) || 1;
+            // Kiểm tra các định dạng thường gặp ở Trạng thái: "Tập 11 Vietsub", "Hoàn tất 28/28", "Tập 27 Vietsub + TM"
+            var matchedEp = statusText.match(/Tập\s*(\d+)/i) || 
+                            statusText.match(/Hoàn\s*tất\s*\(?(\d+)\s*\/\s*(\d+)\)?/i);
+
+            if (matchedEp) {
+                // Nếu dạng hoàn tất 28/28 thì lấy số phía sau hoặc số đơn lẻ sau chữ Tập
+                currentAvailableEpisodes = parseInt(matchedEp[2] || matchedEp[1], 10) || 1;
+            } else if (statusText.toLowerCase().indexOf("full") !== -1) {
+                currentAvailableEpisodes = 1;
             }
 
-            // Trích xuất slug phim gốc từ ID (Ví dụ: /phim/chieu-duong-cong-chua_47107.html -> chieu-duong-cong-chua)
             var cleanSlug = "";
             var slugMatch = id.match(/\/phim\/([^/_.]+)/i);
             if (slugMatch) {
@@ -254,14 +259,23 @@ function parseMovieDetail(htmlContent, url) {
                 cleanSlug = "phim-chiTiet";
             }
 
-            // Tạo đúng chuẩn cấu trúc link tập phim của Phim Chill: /phim/{slug}/tap-{t}_{random}.html
-            for (var t = 1; t <= totalEpisodes; t++) {
-                var currentEpUrl = BASEURL + "/phim/" + cleanSlug + "/tap-" + t + "_" + (1370000 + t) + ".html";
+            // Tạo danh sách chuẩn xác tương ứng với số tập đang phát hành thực tế
+            if (currentAvailableEpisodes <= 1 && statusText.toLowerCase().indexOf("full") !== -1) {
                 episodes.push({
-                    id: currentEpUrl,
-                    name: "Tập " + t,
-                    slug: "tap-" + t
+                    id: BASEURL + "/phim/" + cleanSlug + "/tap-1_" + Math.floor(Math.random() * 900000 + 100000) + ".html",
+                    name: "Full",
+                    slug: "full"
                 });
+            } else {
+                for (var t = 1; t <= currentAvailableEpisodes; t++) {
+                    var currentEpUrl = BASEURL + "/phim/" + cleanSlug + "/tap-" + t + "_" + (1370000 + t) + ".html";
+                    var paddedNum = t < 10 ? "0" + t : t;
+                    episodes.push({
+                        id: currentEpUrl,
+                        name: "Tập " + paddedNum,
+                        slug: "tap-" + t
+                    });
+                }
             }
         }
 
