@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.6.0", // Bản nâng cấp: Thêm Danh mục chuẩn và Bảng Xếp Hạng
+        "version": "2.7.0", // Bản cập nhật: Fix lỗi trắng trang khi Tìm kiếm phim
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -17,7 +17,6 @@ function getManifest() {
     });
 }
 
-// CHIA RA CÁC MỤC FILM NHƯ ẢNH TRÊN TRANG CHỦ
 function getHomeSections() {
     return JSON.stringify([
         { slug: 'home', title: 'Mới Cập Nhật', type: 'Grid', path: '' },
@@ -29,7 +28,6 @@ function getHomeSections() {
     ]);
 }
 
-// DANH SÁCH MENU BÊN TRÁI 
 function getPrimaryCategories() {
     return JSON.stringify([
         { name: 'Mới Cập Nhật', slug: 'home' },
@@ -70,10 +68,15 @@ function getUrlList(slug, filtersJson) {
     }
 }
 
+// ĐÃ FIX: Sửa đường dẫn Tìm kiếm để tương thích với WordPress (Tránh lỗi 404 ở Page 1)
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
-    return "https://yanhh3d.ac/page/" + page + "?s=" + encodeURIComponent(keyword);
+    if (page === 1) {
+        return "https://yanhh3d.ac/?s=" + encodeURIComponent(keyword);
+    } else {
+        return "https://yanhh3d.ac/page/" + page + "/?s=" + encodeURIComponent(keyword);
+    }
 }
 
 function getUrlDetail(slug) {
@@ -102,24 +105,20 @@ var PluginUtils = {
     }
 };
 
-// ĐÃ CẬP NHẬT: Quét theo block thẻ <a> để bắt được toàn bộ phim (kể cả Bảng Xếp Hạng bên phải)
 function parseListResponse(html) {
     try {
         var movies = [];
         var seen = {};
 
-        // Cắt nhỏ HTML theo từng thẻ <a> (Siêu nhẹ, không gây giật lag app)
         var blocks = html.split('<a ');
 
         for (var i = 1; i < blocks.length; i++) {
             var block = blocks[i];
             
-            // Chỉ xử lý nếu thẻ này có chứa ảnh (loại bỏ các nút link chữ thường)
             if (block.indexOf('<img') === -1 && block.indexOf('data-src') === -1) {
                 continue;
             }
 
-            // Bóc tách URL, Image và Title
             var urlMatch = block.match(/^[^>]*href=["']([^"']+)["']/i) || block.match(/href=["']([^"']+)["']/i);
             var imgMatch = block.match(/src=["']([^"']+)["']/i) || block.match(/data-src=["']([^"']+)["']/i);
             var titleMatch = block.match(/title=["']([^"']+)["']/i) || block.match(/alt=["']([^"']+)["']/i);
@@ -137,7 +136,6 @@ function parseListResponse(html) {
                 var title = PluginUtils.cleanText(titleMatch[1]);
                 var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
 
-                // Bộ lọc từ chối các link rác / link danh mục / logo
                 if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
                 if (img.indexOf('avatar') !== -1 || img.indexOf('logo') !== -1 || img.indexOf('banner') !== -1) continue;
                 if (url === '/' || url.indexOf('yanhh3d.ac') === url.length - 10) continue;
@@ -154,7 +152,7 @@ function parseListResponse(html) {
                         lang: "Vietsub / TM",
                         year: 0
                     });
-                    seen[url] = true; // Tránh trùng lặp 1 phim hiển thị 2 lần
+                    seen[url] = true; 
                 }
             }
         }
@@ -167,7 +165,7 @@ function parseListResponse(html) {
             items: movies,
             pagination: {
                 currentPage: currentPage,
-                totalPages: 100, // Để 100 để vuốt Load More thoải mái
+                totalPages: 100, 
                 totalItems: 9999,
                 itemsPerPage: 20
             }
