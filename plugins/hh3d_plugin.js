@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "yanhh3d",
         "name": "YanHH3D",
-        "version": "2.5.0", // Phiên bản mới: Tự động tạo danh sách tập
+        "version": "2.6.0", // Bản nâng cấp: Thêm Danh mục chuẩn và Bảng Xếp Hạng
         "baseUrl": "https://yanhh3d.ac", 
         "iconUrl": "https://yanhh3d.ac/wp-content/uploads/2023/01/cropped-logo-1-192x192.png",
         "isEnabled": true,
@@ -17,25 +17,32 @@ function getManifest() {
     });
 }
 
+// CHIA RA CÁC MỤC FILM NHƯ ẢNH TRÊN TRANG CHỦ
 function getHomeSections() {
     return JSON.stringify([
         { slug: 'home', title: 'Mới Cập Nhật', type: 'Grid', path: '' },
-        { slug: 'the-loai/tien-hiep', title: 'Tiên Hiệp', type: 'Horizontal', path: '' },
-        { slug: 'the-loai/huyen-huyen', title: 'Huyền Huyễn', type: 'Horizontal', path: '' },
-        { slug: 'the-loai/xuyen-khong', title: 'Xuyên Không', type: 'Horizontal', path: '' }
+        { slug: 'hoat-hinh-3d', title: 'Hoạt Hình 3D', type: 'Horizontal', path: '' },
+        { slug: 'hoat-hinh-2d', title: 'Hoạt Hình 2D', type: 'Horizontal', path: '' },
+        { slug: 'hoat-hinh-4k', title: 'Hoạt Hình 4K', type: 'Horizontal', path: '' },
+        { slug: 'hoan-thanh', title: 'Đã Hoàn Thành', type: 'Horizontal', path: '' },
+        { slug: 'dang-chieu', title: 'Đang Chiếu', type: 'Horizontal', path: '' }
     ]);
 }
 
+// DANH SÁCH MENU BÊN TRÁI 
 function getPrimaryCategories() {
     return JSON.stringify([
         { name: 'Mới Cập Nhật', slug: 'home' },
-        { name: 'Tiên Hiệp', slug: 'the-loai/tien-hiep' },
+        { name: 'Hoạt Hình 3D', slug: 'hoat-hinh-3d' },
+        { name: 'Hoạt Hình 2D', slug: 'hoat-hinh-2d' },
+        { name: 'Hoạt Hình 4K', slug: 'hoat-hinh-4k' },
+        { name: 'Đã Hoàn Thành', slug: 'hoan-thanh' },
+        { name: 'Đang Chiếu', slug: 'dang-chieu' },
+        { name: 'Phim Lẻ | Ova', slug: 'phim-le' },
         { name: 'Huyền Huyễn', slug: 'the-loai/huyen-huyen' },
+        { name: 'Tiên Hiệp', slug: 'the-loai/tien-hiep' },
         { name: 'Xuyên Không', slug: 'the-loai/xuyen-khong' },
-        { name: 'Trùng Sinh', slug: 'the-loai/trung-sinh' },
-        { name: 'Hài Hước', slug: 'the-loai/hai-huoc' },
-        { name: 'Cổ Trang', slug: 'the-loai/co-trang' },
-        { name: 'Hành Động', slug: 'the-loai/hanh-dong' }
+        { name: 'Cổ Trang', slug: 'the-loai/co-trang' }
     ]);
 }
 
@@ -95,23 +102,34 @@ var PluginUtils = {
     }
 };
 
+// ĐÃ CẬP NHẬT: Quét theo block thẻ <a> để bắt được toàn bộ phim (kể cả Bảng Xếp Hạng bên phải)
 function parseListResponse(html) {
     try {
         var movies = [];
         var seen = {};
 
-        var blocks = html.split('<article');
-        if (blocks.length < 3) blocks = html.split('class="item');
-        if (blocks.length < 3) blocks = html.split('class="halim-item');
-        if (blocks.length < 3) blocks = html.split('class="post-item');
+        // Cắt nhỏ HTML theo từng thẻ <a> (Siêu nhẹ, không gây giật lag app)
+        var blocks = html.split('<a ');
 
         for (var i = 1; i < blocks.length; i++) {
             var block = blocks[i];
             
-            var urlMatch = block.match(/href=["']([^"']+)["']/i);
+            // Chỉ xử lý nếu thẻ này có chứa ảnh (loại bỏ các nút link chữ thường)
+            if (block.indexOf('<img') === -1 && block.indexOf('data-src') === -1) {
+                continue;
+            }
+
+            // Bóc tách URL, Image và Title
+            var urlMatch = block.match(/^[^>]*href=["']([^"']+)["']/i) || block.match(/href=["']([^"']+)["']/i);
             var imgMatch = block.match(/src=["']([^"']+)["']/i) || block.match(/data-src=["']([^"']+)["']/i);
             var titleMatch = block.match(/title=["']([^"']+)["']/i) || block.match(/alt=["']([^"']+)["']/i);
-            var epMatch = block.match(/class=["'][^"']*(ep|episode|label|status)[^"']*["'][^>]*>([^<]+)</i);
+            
+            if (!titleMatch) {
+                 var tMatch = block.match(/<h[234][^>]*>([^<]+)<\/h[234]>/i);
+                 if (tMatch) titleMatch = tMatch;
+            }
+
+            var epMatch = block.match(/class=["'][^"']*(ep|episode|label|status|time)[^"']*["'][^>]*>([^<]+)</i);
 
             if (urlMatch && imgMatch && titleMatch) {
                 var url = urlMatch[1];
@@ -119,8 +137,10 @@ function parseListResponse(html) {
                 var title = PluginUtils.cleanText(titleMatch[1]);
                 var episode = epMatch ? PluginUtils.cleanText(epMatch[2]) : "HD";
 
+                // Bộ lọc từ chối các link rác / link danh mục / logo
                 if (url.indexOf('the-loai') !== -1 || url.indexOf('page') !== -1 || url.indexOf('?s=') !== -1) continue;
-                if (img.indexOf('avatar') !== -1) continue;
+                if (img.indexOf('avatar') !== -1 || img.indexOf('logo') !== -1 || img.indexOf('banner') !== -1) continue;
+                if (url === '/' || url.indexOf('yanhh3d.ac') === url.length - 10) continue;
 
                 if (title && !seen[url]) {
                     var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
@@ -134,7 +154,7 @@ function parseListResponse(html) {
                         lang: "Vietsub / TM",
                         year: 0
                     });
-                    seen[url] = true;
+                    seen[url] = true; // Tránh trùng lặp 1 phim hiển thị 2 lần
                 }
             }
         }
@@ -147,7 +167,7 @@ function parseListResponse(html) {
             items: movies,
             pagination: {
                 currentPage: currentPage,
-                totalPages: 100,
+                totalPages: 100, // Để 100 để vuốt Load More thoải mái
                 totalItems: 9999,
                 itemsPerPage: 20
             }
@@ -161,7 +181,6 @@ function parseSearchResponse(html) {
     return parseListResponse(html);
 }
 
-// ĐÃ CẬP NHẬT: Dùng thuật toán nhân bản danh sách tập từ Trang Thông Tin
 function parseMovieDetail(html) {
     try {
         var titleM = html.match(/<meta property="og:title" content="([^"]+)"/i) || html.match(/<title>([^<]+)<\/title>/i);
@@ -174,7 +193,6 @@ function parseMovieDetail(html) {
         var descM = html.match(/<meta property="og:description" content="([^"]+)"/i) || html.match(/<div[^>]*class=["'][^"']*desc[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
         var desc = descM ? PluginUtils.cleanText(descM[1]) : "";
 
-        // 1. Trích xuất Slug phim chuẩn (VD: pham-nhan-tu-tien)
         var baseSlug = "";
         var ogUrl = html.match(/<meta property="og:url" content="([^"]+)"/i) || html.match(/<link rel="canonical" href="([^"]+)"/i);
         if (ogUrl) {
@@ -182,17 +200,15 @@ function parseMovieDetail(html) {
             baseSlug = urlObj.substring(urlObj.lastIndexOf("/") + 1);
         }
 
-        // 2. Tìm số lượng tập lớn nhất hiện có
         var maxEp = 1;
-        var epMatch1 = html.match(/Tập mới nhất:.*?Tập\s*(\d+)/i); // Bắt chữ "Tập mới nhất: Tập 183"
-        var epMatch2 = html.match(/Thời lượng:.*?(\d+)\//i);       // Bắt chữ "Thời lượng: 183/..."
+        var epMatch1 = html.match(/Tập mới nhất:.*?Tập\s*(\d+)/i);
+        var epMatch2 = html.match(/Thời lượng:.*?(\d+)\//i);
         
         if (epMatch1) {
             maxEp = parseInt(epMatch1[1], 10);
         } else if (epMatch2) {
             maxEp = parseInt(epMatch2[1], 10);
         } else {
-            // Rà soát vét đáy các link có chữ tap- để tìm số lớn nhất
             var linkRegex = /tap-(\d+)/gi;
             var lM;
             while ((lM = linkRegex.exec(html)) !== null) {
@@ -201,16 +217,14 @@ function parseMovieDetail(html) {
             }
         }
 
-        // 3. Kiểm tra xem phim có các Server nào (TM / Vietsub)
         var lowerHtml = html.toLowerCase();
         var hasTM = lowerHtml.indexOf('xem thuyết minh') !== -1;
         var hasSub = lowerHtml.indexOf('xem vietsub') !== -1 || lowerHtml.indexOf('/sever2/') !== -1;
-        if (!hasTM && !hasSub) hasTM = true; // Chốt hạ mặc định
+        if (!hasTM && !hasSub) hasTM = true;
 
         var vietsubEpisodes = [];
         var thuyetMinhEpisodes = [];
 
-        // 4. Vòng lặp siêu tốc: Tự động đúc danh sách tập
         if (baseSlug && maxEp > 0) {
             for (var i = 1; i <= maxEp; i++) {
                 var epName = "Tập " + i;
@@ -231,7 +245,6 @@ function parseMovieDetail(html) {
             }
         } 
 
-        // 5. Đóng gói Server
         var servers = [];
         if (thuyetMinhEpisodes.length > 0) {
             servers.push({ name: "Thuyết Minh", episodes: thuyetMinhEpisodes });
@@ -240,7 +253,6 @@ function parseMovieDetail(html) {
             servers.push({ name: "Vietsub", episodes: vietsubEpisodes });
         }
         
-        // Cứu cánh nếu trang web bị lỗi hoặc phim lẻ 1 tập
         if (servers.length === 0) {
              servers.push({ name: "Hệ Thống", episodes: [{ id: baseSlug + "/tap-1", name: "Đang Cập Nhật / Full", slug: baseSlug + "/tap-1" }] });
         }
