@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "7.1.0",             
+        "version": "8.0.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - TỐI ƯU QUÉT TRANG CHỦ & DANH MỤC KHÔNG BỊ SÓT PHIM
+// PARSERS - FIX CHUẨN TỐC ĐỘ LOAD TRANG CHỦ & THƯ MỤC
 // =============================================================================
 
 function parseListResponse(html) {
@@ -112,57 +112,63 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Mở rộng bộ quét: Bắt đồng thời <article>, <li> và các khối div bọc phim
-        var blockRegex = /<article[\s\S]*?<\/article>|<li[^>]*>[\s\S]*?<\/li>|<div class="[^"]*item[^"]*">[\s\S]*?<\/div>/gi;
-        var blocks = html.match(blockRegex) || [];
+        // Quét toàn bộ các thẻ liên kết chứa poster và tiêu đề phim
+        var regex = /<a[^>]*href=["']([^"']+\/phim\/[^"']+)["'][^>]*title=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*(?:src|data-src)=["']([^"']+)["']/gi;
+        var match;
 
-        // Nếu số block quét được quá ít, fallback quét toàn bộ các thẻ <a> có chứa hình ảnh và title
-        if (blocks.length < 5) {
-            blockRegex = /<a[^>]*title="[^"]+"[^>]*href="[^"]+\/phim\/[^"]+"[\s\S]*?<\/a>/gi;
-            blocks = html.match(blockRegex) || [];
-        }
+        while ((match = regex.exec(html)) !== null) {
+            var url = match[1].trim();
+            var title = match[2].replace(/<[^>]*>/g, '').trim();
+            var posterUrl = match[3].trim();
 
-        for (var i = 0; i < blocks.length; i++) {
-            var block = blocks[i];
+            if (!title || title === "Video không tiêu đề") continue;
 
-            var hrefMatch = block.match(/href="([^"]+)"/i);
-            if (!hrefMatch) continue;
-            var href = hrefMatch[1].trim();
-
-            // Loại bỏ các link danh mục, thể loại, trang chủ
-            if (href.indexOf("/the-loai/") !== -1 || href.indexOf("/quoc-gia/") !== -1 || href.indexOf("/danh-sach/") !== -1 || href === BASEURL || href === BASEURL + "/") {
-                continue;
+            if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
+                posterUrl = BASEURL + posterUrl;
+            } else if (posterUrl.indexOf('http') !== 0 && posterUrl.indexOf('//') !== 0) {
+                posterUrl = BASEURL + "/" + posterUrl;
             }
 
-            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h[34][^>]*>([\s\S]*?)<\/h[34]>/i);
-            if (!titleMatch) continue;
-            var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
-
-            if (!title || title === "Video không tiêu đề" || title.length < 2) continue;
-
-            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i) || block.match(/background:\s*url\(([^)]+)\)/i);
-            var posterUrl = "";
-            if (srcMatch) {
-                posterUrl = srcMatch[1].replace(/['"]/g, "").trim();
-            }
-
-            if (posterUrl) {
-                if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
-                    posterUrl = BASEURL + posterUrl;
-                } else if (posterUrl.indexOf('http') !== 0 && posterUrl.indexOf('//') !== 0) {
-                    posterUrl = BASEURL + "/" + posterUrl;
-                }
-            }
-
-            if (!seen[href]) {
+            if (!seen[url]) {
                 items.push({
-                    "id": href,
+                    "id": url,
                     "title": title,
                     "posterUrl": posterUrl,
                     "backdropUrl": posterUrl,
                     "quality": "HD"
                 });
-                seen[href] = true;
+                seen[url] = true;
+            }
+        }
+
+        // Dự phòng quét dạng khối article nếu regex trên không khớp
+        if (items.length === 0) {
+            var articleRegex = /<article[\s\S]*?<\/article>/gi;
+            var articles = html.match(articleRegex) || [];
+            for (var j = 0; j < articles.length; j++) {
+                var block = articles[j];
+                var hMatch = block.match(/href="([^"]+\/phim\/[^"]+)"/i);
+                var tMatch = block.match(/title="([^"]+)"/i);
+                var iMatch = block.match(/(?:src|data-src)="([^"]+)"/i);
+
+                if (hMatch && tMatch) {
+                    var link = hMatch[1].trim();
+                    var name = tMatch[1].trim();
+                    var img = iMatch ? iMatch[1].trim() : "";
+
+                    if (img.indexOf('/') === 0 && img.indexOf('//') !== 0) img = BASEURL + img;
+
+                    if (!seen[link]) {
+                        items.push({
+                            "id": link,
+                            "title": name,
+                            "posterUrl": img,
+                            "backdropUrl": img,
+                            "quality": "HD"
+                        });
+                        seen[link] = true;
+                    }
+                }
             }
         }
 
@@ -170,8 +176,8 @@ function parseListResponse(html) {
             "items": items,
             "pagination": {
                 "currentPage": 1,
-                "totalPages": 20,
-                "totalItems": items.length * 20,
+                "totalPages": 50,
+                "totalItems": items.length * 50,
                 "itemsPerPage": 24
             }
         });
@@ -185,7 +191,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & DANH SÁCH TẬP
+// PARSER CHI TIẾT PHIM & TẬP PHIM
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -218,7 +224,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // Quét toàn bộ các link tập phim thực tế trong trang
+        // Quét toàn bộ danh sách tập thực tế từ trong trang xem phim
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-\d+_[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
