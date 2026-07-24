@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.4.0",             
+        "version": "4.5.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -104,7 +104,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS - BẮT TRỌN TRANG CHỦ & PHÂN MỤC CHUẨN XÁC
+// PARSERS - LỌC SẠCH MENU RÁC, CHỈ BẮT ĐÚNG PHIM
 // =============================================================================
 
 function parseListResponse(html) {
@@ -112,8 +112,7 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét tất cả các thẻ article hoặc phần tử chứa phim
-        var articleRegex = /<article[\s\S]*?<\/article>|<li[^>]*>[\s\S]*?<\/li>/gi;
+        var articleRegex = /<article[\s\S]*?<\/article>/gi;
         var articles = html.match(articleRegex) || [];
 
         for (var i = 0; i < articles.length; i++) {
@@ -123,17 +122,19 @@ function parseListResponse(html) {
             if (!hrefMatch) continue;
             var href = hrefMatch[1].trim();
 
-            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h[34][^>]*>([\s\S]*?)<\/h[34]>/i) || block.match(/class="title">[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
+            // CHẶN TUYỆT ĐỐI các link không phải là phim (menu thể loại, quốc gia, trang chủ...)
+            if (href.indexOf("/the-loai/") !== -1 || href.indexOf("/quoc-gia/") !== -1 || href.indexOf("/danh-sach/") !== -1 || href === BASEURL || href === BASEURL + "/") {
+                continue;
+            }
+
+            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
             if (!titleMatch) continue;
             var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
 
-            if (!title || title === "Video không tiêu đề" || href.indexOf("dang-nhap") !== -1) continue;
+            if (!title || title === "Video không tiêu đề" || title.length < 2) continue;
 
-            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i) || block.match(/background:\s*url\(([^)]+)\)/i);
-            var posterUrl = "";
-            if (srcMatch) {
-                posterUrl = srcMatch[1].replace(/['"]/g, "").trim();
-            }
+            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i);
+            var posterUrl = srcMatch ? srcMatch[1].trim() : "";
 
             if (posterUrl) {
                 if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
