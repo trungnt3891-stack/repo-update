@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.5.0", // Hoàn thiện hỗ trợ Phim Lẻ / Full và fix lỗi quét tập
+        "version": "1.6.0", // Fix hoàn chỉnh URL Tìm kiếm, Phim Lẻ (Full) và lọc sạch tập rác
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -59,6 +59,7 @@ function getUrlList(slug, filtersJson) {
     return baseUrl + "/" + slug;
 }
 
+// ĐÃ SỬA: Cấu hình chuẩn URL Tìm kiếm phù hợp cho cào dữ liệu qua GET
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
@@ -176,7 +177,6 @@ function parseMovieDetail(html) {
             var url = hrefMatch[1];
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
-            // Kiểm tra xem có phải link tập hay không
             var numMatch = slug.match(/tap-(\d+)/i);
             if (numMatch) {
                 var epNum = numMatch[1];
@@ -196,7 +196,6 @@ function parseMovieDetail(html) {
             }
         }
         
-        // Sắp xếp tập xuôi chiều từ 1 -> N
         if (episodes.length > 1) {
             episodes.sort(function(a, b) {
                 var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
@@ -212,7 +211,7 @@ function parseMovieDetail(html) {
                 episodes: episodes
             });
         } else {
-             // HỖ TRỢ PHIM LẺ / FULL: Nếu không tìm thấy danh sách tập số, tự động tạo nút "Full"
+             // HỖ TRỢ PHIM LẺ / FULL: Tránh lỗi bấm vào nút Full bị crash
              var watchLinkMatch = html.match(/href=["'](https?:\/\/[^"']+\/xem-phim\/[^"']+)["']/i);
              var watchSlug = watchLinkMatch ? watchLinkMatch[1].replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "") : baseSlug;
              
