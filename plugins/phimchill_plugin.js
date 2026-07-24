@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "2.0.1",             
+        "version": "2.0.2",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -112,7 +112,6 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét chuẩn xác tất cả các khối thẻ bài hiển thị phim ngoài trang chủ và danh mục
         var regex = /<a[^>]*href=["']([^"']+\/phim\/[^"']+)["'][^>]*title=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*(?:src|data-src)=["']([^"']+)["']/gi;
         var match;
 
@@ -141,7 +140,6 @@ function parseListResponse(html) {
             }
         }
 
-        // Phương án dự phòng quét khối article
         if (items.length === 0) {
             var articleRegex = /<article[\s\S]*?<\/article>/gi;
             var articles = html.match(articleRegex) || [];
@@ -191,7 +189,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & BÓC ĐỦ SỐ TẬP
+// PARSER CHI TIẾT PHIM & BÓC TÁCH ĐẦY ĐỦ KHÔNG SÓT TẬP
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -224,8 +222,8 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // Quét toàn bộ danh sách tập thực tế từ trong HTML
-        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-\d+_[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
+        // Mở rộng Regex để quét tất cả các định dạng liên kết tập phim trên web
+        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
             var epUrl = match[1].trim();
@@ -251,7 +249,7 @@ function parseMovieDetail(htmlContent, url) {
 
         var redirectUrl = "";
         if (episodes.length === 0) {
-            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1_[^"]+\.html)"/i) || 
+            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1[^"]*\.html)"/i) || 
                                htmlContent.match(/href="([^"]+\/tap-1[^"]*)"/i) ||
                                htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
             if (xemPhimMatch) {
