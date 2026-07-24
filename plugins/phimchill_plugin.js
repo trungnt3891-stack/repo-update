@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "2.0.5",             
+        "version": "2.0.6",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -128,7 +128,6 @@ function parseListResponse(html) {
                 posterUrl = BASEURL + "/" + posterUrl;
             }
 
-            // Đảm bảo chỉ lấy link trang thông tin phim gốc (không lấy link tập lẻ)
             if (url.indexOf("tap-") !== -1) continue;
 
             if (!seen[url]) {
@@ -193,7 +192,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & ĐỒNG BỘ DANH SÁCH TẬP THỰC TẾ
+// PARSER CHI TIẾT PHIM & QUÉT TOÀN BỘ TẬP KHÔNG BỊ THIẾU
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -226,8 +225,8 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // Quét tất cả các thẻ a chứa link tập thực tế trong HTML
-        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/tap-[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
+        // Quét toàn diện tất cả các thẻ a chứa link tập trong trang chi tiết
+        var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+\/[^"]+\.html)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
             var epUrl = match[1].trim();
@@ -237,9 +236,10 @@ function parseMovieDetail(htmlContent, url) {
                 epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            if (!seenEp[epUrl]) {
-                var numMatch = epUrl.match(/tap-([^_]+)/i);
-                var formattedName = numMatch ? ("Tập " + numMatch[1].replace(/-/g, ' ')) : (epText || "Tập");
+            // Chỉ nhận diện các link tập phim thực tế (có chứa chữ tap- hoặc số tập hợp lệ)
+            if ((epUrl.indexOf('tap-') !== -1 || (!isNaN(epText) && epText.length > 0)) && !seenEp[epUrl]) {
+                var numMatch = epUrl.match(/tap-([^_]+)/i) || epUrl.match(/tap-(\d+)/i);
+                var formattedName = numMatch ? ("Tập " + numMatch[1].replace(/-/g, ' ')) : (!isNaN(epText) ? ("Tập " + epText) : (epText || "Tập"));
 
                 episodes.push({
                     id: epUrl,
@@ -250,30 +250,18 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
-        // Nếu ở trang thông tin chung chưa có sẵn tập, trích xuất link nút "Xem Phim" để làm ID tập đầu tiên
-        var playBtnMatch = "";
-        if (episodes.length === 0) {
-            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-[^"]*\.html)"/i) || 
-                               htmlContent.match(/href="([^"]+\/tap-[^"]*)"/i) ||
-                               htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
-            if (xemPhimMatch) {
-                playBtnMatch = xemPhimMatch[1];
-                if (playBtnMatch.indexOf('http') !== 0) {
-                    playBtnMatch = BASEURL + (playBtnMatch.startsWith('/') ? '' : '/') + playBtnMatch;
-                }
-            }
-        }
-
         var servers = [];
         if (episodes.length > 0) {
+            // Sắp xếp thứ tự từ tập 1 đến N chuẩn xác
+            episodes.sort(function(a, b) {
+                var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
             servers.push({
                 name: "Danh Sách Vietsub",
                 episodes: episodes
-            });
-        } else if (playBtnMatch) {
-            servers.push({
-                name: "Danh Sách Vietsub",
-                episodes: [{ id: playBtnMatch, name: "Xem Phim (Tập Mới Nhất)", slug: "xem-phim" }]
             });
         } else {
             servers.push({
@@ -306,7 +294,7 @@ function parseMovieDetail(htmlContent, url) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT TẬP PHIM & TRẢ THẲNG LINK STREAM M3U8
+// PARSER CHI TIẾT TẬP PHIM & TRẢ THẲNG LINK STREAM M3U8 HOẶC WEBVIEW
 // =============================================================================
 
 function parseDetailResponse(html, url) {
