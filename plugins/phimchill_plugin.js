@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.0.0",             
+        "version": "4.1.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -102,7 +102,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS (FIX BẮT PHIM TRANG CHỦ & TÌM KIẾM)
+// PARSERS (TỐI ƯU QUÉT TRANG CHỦ VÀ TÌM KIẾM CHO PHIM CHILL)
 // =============================================================================
 
 function parseListResponse(html) {
@@ -110,21 +110,35 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét chuẩn các khối article của Phim Chill dựa theo mã nguồn HTML bạn cung cấp
-        var regex = /<article[\s\S]*?<a[^>]*href="([^"]+)"[^>]*title="([^"]+)"[\s\S]*?<img[^>]*src="([^"]+)"/gi;
-        var match;
+        // Quét tất cả các thẻ <article> chứa phim trên trang chủ và trang danh sách
+        var articleRegex = /<article[\s\S]*?<\/article>/gi;
+        var articles = html.match(articleRegex) || [];
 
-        while ((match = regex.exec(html)) !== null) {
-            var href = match[1].trim();
-            var title = match[2].trim();
-            var posterUrl = match[3].trim();
+        for (var i = 0; i < articles.length; i++) {
+            var block = articles[i];
+
+            // Bóc link phim từ thẻ a trong article
+            var hrefMatch = block.match(/href="([^"]+)"/i);
+            if (!hrefMatch) continue;
+            var href = hrefMatch[1].trim();
+
+            // Bóc tiêu đề phim từ title hoặc h3
+            var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+            if (!titleMatch) continue;
+            var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
 
             if (!title || title === "Video không tiêu đề" || href.indexOf("dang-nhap") !== -1) continue;
 
-            if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
-                posterUrl = BASEURL + posterUrl;
-            } else if (posterUrl.indexOf('http') !== 0 && posterUrl.indexOf('//') !== 0) {
-                posterUrl = BASEURL + "/" + posterUrl;
+            // Bóc link ảnh poster
+            var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i);
+            var posterUrl = srcMatch ? srcMatch[1].trim() : "";
+
+            if (posterUrl) {
+                if (posterUrl.indexOf('/') === 0 && posterUrl.indexOf('//') !== 0) {
+                    posterUrl = BASEURL + posterUrl;
+                } else if (posterUrl.indexOf('http') !== 0 && posterUrl.indexOf('//') !== 0) {
+                    posterUrl = BASEURL + "/" + posterUrl;
+                }
             }
 
             if (!seen[href]) {
@@ -158,7 +172,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT VÀ BẮT LINK TẬP PHIM TỪ HTML THỰC TẾ
+// PARSER CHI TIẾT PHIM VÀ TẬP PHIM
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -188,16 +202,10 @@ function parseMovieDetail(htmlContent, url) {
         rmatch = htmlContent.match(/meta\s+property="video:actor"\s+content="([^"]+)"/i);
         if (rmatch && rmatch[1]) lactor = rmatch[1];
 
-        // Quét toàn bộ danh sách các tập phim theo từng server (Vietsub #1, Thuyết minh #1...)
-        var servers = [];
-        
-        // Tách các khối danh sách tập dựa trên cấu trúc thẻ span tiêu đề Danh Sách
-        var parts = htmlContent.split(/Danh\s*Sách\s*Vietsub|Danh\s*Sách\s*Zthuyết minh|Danh\s*Sách/i);
-        
-        // Quét các nút chọn tập (thẻ <a> chứa link tập phim dạng /phim/...)
         var episodes = [];
         var seenEp = {};
         
+        // Quét các nút chọn tập chuẩn của Phim Chill
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*title="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -209,7 +217,6 @@ function parseMovieDetail(htmlContent, url) {
                 epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            // Chỉ lấy các link tập phim
             if (epUrl.indexOf('tap-') !== -1 && !seenEp[epUrl]) {
                 var nameEp = !isNaN(epText) ? ("Tập " + epText) : (epTitle || "Tập");
                 episodes.push({
@@ -221,13 +228,13 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
+        var servers = [];
         if (episodes.length > 0) {
             servers.push({
                 name: "Danh Sách Vietsub",
                 episodes: episodes
             });
         } else {
-            // Trường hợp phim lẻ chỉ có 1 nút Full
             servers.push({
                 name: "Phim Lẻ",
                 episodes: [{ id: id, name: "Full", slug: "full" }]
@@ -258,7 +265,7 @@ function parseMovieDetail(htmlContent, url) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT TẬP PHIM VÀ LẤY LINK M3U8 / EMBED TRỰC TIẾP TỪ NÚT SERVER
+// PARSER CHI TIẾT TẬP PHIM & LẤY STREAM M3U8
 // =============================================================================
 
 function parseDetailResponse(html, url) {
@@ -267,7 +274,6 @@ function parseDetailResponse(html, url) {
         var mimeType = "application/x-mpegURL";
         var isEmbed = false;
 
-        // Trích xuất trực tiếp link từ các thuộc tính data-link trong trang xem phim của Phim Chill
         var m3u8Match = html.match(/data-type="m3u8"[^>]*data-link="([^"]+)"/i) || html.match(/data-link="([^"]+\.m3u8[^"]*)"/i);
         if (m3u8Match) {
             streamUrl = m3u8Match[1];
@@ -281,7 +287,6 @@ function parseDetailResponse(html, url) {
             }
         }
 
-        // Dự phòng quét bất kỳ link m3u8 nào có trong trang
         if (!streamUrl) {
             var genericMatch = html.match(/(https?:\/\/[^"'\s<>]*\.m3u8[^"'\s<>]*)/i);
             if (genericMatch) {
