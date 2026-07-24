@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.9.0",             
+        "version": "5.0.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -174,7 +174,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & ĐỌC ĐÚNG SỐ TẬP TỪ THÔNG TIN TRANG CHỦ
+// PARSER CHI TIẾT PHIM & BÓC SỐ TẬP CHUẨN XÁC TỪ PHẦN TRẠNG THÁI
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -207,7 +207,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // 1. Quét các tập phim có sẵn trong HTML (nếu có)
+        // 1. Quét các link tập phim thực tế nếu có sẵn
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -231,20 +231,26 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
-        // 2. Nếu chưa có danh sách tập, đọc trực tiếp thông số "Trạng Thái" hoặc "Số Tập" từ bảng thông tin (ví dụ: (20/20) hoặc 20 Tập)
+        // 2. Nếu chưa có danh sách tập, lấy chính xác số tập từ trường "Trạng thái" (Ưu tiên số sau chữ Tập hoặc số đứng trước dấu /)
         if (episodes.length === 0) {
             var totalEpisodes = 1;
 
-            // Bắt dạng (20/20) hoặc Tổng số tập từ trường Trạng thái/Số tập
-            var statusMatch = htmlContent.match(/\(\s*\d+\s*\/\s*(\d+)\s*\)/i) || 
-                              htmlContent.match(/Số\s*Tập[\s\S]*?>\s*(\d+)\s*Tập/i) ||
-                              htmlContent.match(/(\d+)\s*Tập/i);
+            // Quét các dạng trạng thái: "Tập 11 Vietsub", "Hoàn tất 28/28", "Tập 27 Vietsub + TM"
+            var statusBlockMatch = htmlContent.match(/Trạng\s*thái[\s\S]*?>([\s\S]*?)<\/(?:div|span|p|td)/i);
+            var statusText = statusBlockMatch ? statusBlockMatch[1] : htmlContent;
 
-            if (statusMatch) {
-                totalEpisodes = parseInt(statusMatch[1], 10) || 1;
+            var epNumMatch = statusText.match(/Tập\s*(\d+)/i) || 
+                             statusText.match(/\/\s*(\d+)\s*\)/i) || 
+                             statusText.match(/(\d+)\s*\/\s*(\d+)/i);
+
+            if (epNumMatch) {
+                // Nếu dạng 28/28 thì lấy số phía sau hoặc số đơn lẻ sau chữ Tập
+                totalEpisodes = parseInt(epNumMatch[2] || epNumMatch[1], 10) || 1;
+            } else if (statusText.toLowerCase().indexOf("full") !== -1 || statusText.toLowerCase().indexOf("hoàn tất") !== -1) {
+                // Nếu là phim lẻ hoặc hoàn tất nhưng không bắt được số, mặc định 1 hoặc quét tiếp
+                totalEpisodes = 1;
             }
 
-            // Lấy link nút "Xem Phim" để làm gốc URL cho các tập
             var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1[^"]*)"/i) || 
                                htmlContent.match(/href="([^"]+\/tap-1[^"]*)"/i) ||
                                htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
@@ -256,22 +262,30 @@ function parseMovieDetail(htmlContent, url) {
                     baseEpUrl = BASEURL + (baseEpUrl.startsWith('/') ? '' : '/') + baseEpUrl;
                 }
             } else {
-                // Tạo đường dẫn chuẩn dựa theo id phim gốc
                 var cleanId = id.replace(/_[^/]+\.html$/, "").replace(/\.html$/, "");
                 baseEpUrl = cleanId + "/tap-1_" + Math.floor(Math.random() * 900000 + 100000) + ".html";
             }
 
-            // Tạo danh sách chính xác từ 1 đến totalEpisodes
-            for (var t = 1; t <= totalEpisodes; t++) {
-                var currentEpUrl = baseEpUrl.replace(/\/tap-\d+_[^/]+\.html/i, "/tap-" + t + "_" + (1370000 + t) + ".html");
-                if (currentEpUrl.indexOf('tap-') === -1) {
-                    currentEpUrl = baseEpUrl.replace(/tap-1/, "tap-" + t);
-                }
+            // Nếu chỉ có 1 tập (phim lẻ / full)
+            if (totalEpisodes <= 1 && (statusText.toLowerCase().indexOf("full") !== -1 || statusText.toLowerCase().indexOf("hoàn tất (1/1)") !== -1)) {
                 episodes.push({
-                    id: currentEpUrl,
-                    name: "Tập " + t,
-                    slug: "tap-" + t
+                    id: baseEpUrl,
+                    name: "Full",
+                    slug: "full"
                 });
+            } else {
+                // Tạo danh sách chính xác từ 1 đến totalEpisodes theo trạng thái
+                for (var t = 1; t <= totalEpisodes; t++) {
+                    var currentEpUrl = baseEpUrl.replace(/\/tap-\d+_[^/]+\.html/i, "/tap-" + t + "_" + (1370000 + t) + ".html");
+                    if (currentEpUrl.indexOf('tap-') === -1) {
+                        currentEpUrl = baseEpUrl.replace(/tap-1/, "tap-" + t);
+                    }
+                    episodes.push({
+                        id: currentEpUrl,
+                        name: "Tập " + t,
+                        slug: "tap-" + t
+                    });
+                }
             }
         }
 
