@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "animehay",
         "name": "AnimeHay",
-        "version": "1.7.0", // Hoàn thiện tính năng Tìm kiếm và giữ nguyên các tính năng xem phim ổn định
+        "version": "1.8.0", // Hoàn thiện tính năng Tìm kiếm bằng cách chuẩn hóa URL kết quả trang chủ/danh mục
         "baseUrl": "https://animehay09.site",
         "iconUrl": "https://animehay09.site/themes/img/favicon.ico",
         "isEnabled": true,
@@ -59,16 +59,17 @@ function getUrlList(slug, filtersJson) {
     return baseUrl + "/" + slug;
 }
 
-// Cấu hình chuẩn URL Tìm kiếm thông qua GET để Vax cào dữ liệu thành công
+// Sửa cấu trúc URL Tìm kiếm để tương thích với query truyền vào từ App Vax
 function getUrlSearch(keyword, filtersJson) {
     var filters = JSON.parse(filtersJson || "{}");
     var page = filters.page || 1;
     var encoded = encodeURIComponent(keyword.trim());
     
+    // Trỏ vào danh mục bộ lọc tìm kiếm của website qua tham số GET
     if (page > 1) {
-        return "https://animehay09.site/tim-kiem/trang-" + page + ".html?keyword=" + encoded;
+        return "https://animehay09.site/tim-kiem/trang-" + page + ".html?q=" + encoded + "&keyword=" + encoded;
     }
-    return "https://animehay09.site/tim-kiem/?keyword=" + encoded;
+    return "https://animehay09.site/tim-kiem/?q=" + encoded + "&keyword=" + encoded;
 }
 
 function getUrlDetail(slug) {
@@ -143,13 +144,13 @@ function parseListResponse(html) {
     }
 }
 
-// Xử lý riêng kết quả trả về từ trang Tìm kiếm
+// Bắt kết quả tìm kiếm chuẩn xác bằng cấu trúc quét linh hoạt
 function parseSearchResponse(html) {
     try {
         var items = [];
         var seen = {};
         
-        // Quét các kết quả phim trong trang tìm kiếm dạng /thong-tin-phim/ hoặc /xem-phim/
+        // Quét tất cả các thẻ có chứa link thông tin phim hoặc xem phim
         var regex = /<a[^>]*href=["']([^"']+(?:thong-tin-phim|xem-phim)[^"']+)["'][^>]*title=["']([^"']+)["']/gi;
         var match;
         
@@ -157,12 +158,11 @@ function parseSearchResponse(html) {
             var url = match[1];
             var title = match[2].replace(/<[^>]*>/g, '').trim();
             
-            // Tìm ảnh poster đi kèm trong cùng block
-            var subBlock = html.substring(match.index, match.index + 500);
+            var subBlock = html.substring(match.index, match.index + 600);
             var imgMatch = subBlock.match(/(?:src|data-src)=["']([^"']+)["']/i);
             var img = imgMatch ? imgMatch[1] : "";
             
-            if (!img || title.toLowerCase() === "animehay") continue;
+            if (!img || title.toLowerCase() === "animehay" || title.length < 2) continue;
             
             var slug = url.replace(/https?:\/\/[^\/]+\//i, "").replace(/^\//, "");
             
@@ -178,7 +178,6 @@ function parseSearchResponse(html) {
             }
         }
         
-        // Nếu bộ quét trên thiếu, gọi trạm trung chuyển parseListResponse
         if (items.length === 0) {
             return parseListResponse(html);
         }
