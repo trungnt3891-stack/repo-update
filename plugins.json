@@ -44,6 +44,14 @@
       "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/ophim.ico"
     },
     {
+            "id": "phimchill",
+            "name": "Phim Chill",
+            "version": "3.8.0",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/phimchill.js",
+            "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/phimchill.ico",
+            "info": "Phim hay, xem mượt. Nếu nguồn không vào được hãy thử truy cập bằng nút đăng nhập ở kho plugin để xem họ đổi domain gì và bạn tự đổi lại trên app và báo cho tác giả biết."
+    },
+    {
       "id": "kkphim",
       "name": "KKPhim",
       "version": "1.0.2",
