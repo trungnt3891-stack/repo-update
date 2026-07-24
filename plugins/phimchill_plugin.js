@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.1.0",             
+        "version": "4.2.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -102,7 +102,7 @@ function getUrlCountries() { return ""; }
 function getUrlYears() { return ""; }
 
 // =============================================================================
-// PARSERS (TỐI ƯU QUÉT TRANG CHỦ VÀ TÌM KIẾM CHO PHIM CHILL)
+// PARSERS - BẮT TRỌN TRANG CHỦ, DANH SÁCH & TÌM KIẾM
 // =============================================================================
 
 function parseListResponse(html) {
@@ -110,26 +110,23 @@ function parseListResponse(html) {
         var items = [];
         var seen = {};
 
-        // Quét tất cả các thẻ <article> chứa phim trên trang chủ và trang danh sách
+        // Quét toàn bộ các thẻ article chứa phim
         var articleRegex = /<article[\s\S]*?<\/article>/gi;
         var articles = html.match(articleRegex) || [];
 
         for (var i = 0; i < articles.length; i++) {
             var block = articles[i];
 
-            // Bóc link phim từ thẻ a trong article
             var hrefMatch = block.match(/href="([^"]+)"/i);
             if (!hrefMatch) continue;
             var href = hrefMatch[1].trim();
 
-            // Bóc tiêu đề phim từ title hoặc h3
             var titleMatch = block.match(/title="([^"]+)"/i) || block.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
             if (!titleMatch) continue;
             var title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
 
             if (!title || title === "Video không tiêu đề" || href.indexOf("dang-nhap") !== -1) continue;
 
-            // Bóc link ảnh poster
             var srcMatch = block.match(/src="([^"]+)"/i) || block.match(/data-src="([^"]+)"/i);
             var posterUrl = srcMatch ? srcMatch[1].trim() : "";
 
@@ -157,8 +154,8 @@ function parseListResponse(html) {
             "items": items,
             "pagination": {
                 "currentPage": 1,
-                "totalPages": 10,
-                "totalItems": items.length * 10,
+                "totalPages": 20,
+                "totalItems": items.length * 20,
                 "itemsPerPage": 24
             }
         });
@@ -172,7 +169,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM VÀ TẬP PHIM
+// PARSER CHI TIẾT PHIM & DANH SÁCH TẬP
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -205,7 +202,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // Quét các nút chọn tập chuẩn của Phim Chill
+        // Quét toàn bộ các link tập phim có dạng /phim/ trong trang
         var aRegex = /<a[^>]*href="([^"]+\/phim\/[^"]+)"[^>]*title="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -265,7 +262,7 @@ function parseMovieDetail(htmlContent, url) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT TẬP PHIM & LẤY STREAM M3U8
+// PARSER CHI TIẾT TẬP PHIM & LẤY STREAM M3U8 TRỰC TIẾP
 // =============================================================================
 
 function parseDetailResponse(html, url) {
@@ -274,6 +271,7 @@ function parseDetailResponse(html, url) {
         var mimeType = "application/x-mpegURL";
         var isEmbed = false;
 
+        // Ưu tiên bắt link m3u8 từ các thuộc tính data-link hoặc data-type="m3u8"
         var m3u8Match = html.match(/data-type="m3u8"[^>]*data-link="([^"]+)"/i) || html.match(/data-link="([^"]+\.m3u8[^"]*)"/i);
         if (m3u8Match) {
             streamUrl = m3u8Match[1];
