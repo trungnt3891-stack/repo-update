@@ -9,7 +9,7 @@ function getManifest() {
         "id": "phimchill",          
         "name": "Phim Chill",
         "description": "Phim online chất lượng cao",
-        "version": "4.6.0",             
+        "version": "4.7.0",             
         "baseUrl": BASEURL,
         "iconUrl": "https://raw.githubusercontent.com/alokillgtv-gif/VAXAPPSCRIPT/main/img/motherless_logo.jpgphimchill.ico", 
         "isEnabled": true,
@@ -174,7 +174,7 @@ function parseSearchResponse(html) {
 }
 
 // =============================================================================
-// PARSER CHI TIẾT PHIM & TỰ ĐỘNG BÓC DANH SÁCH TẬP 
+// PARSER CHI TIẾT PHIM & XỬ LÝ 1 CHẠM TỰ ĐỘNG BÓC DANH SÁCH TẬP CHUẨN XÁC
 // =============================================================================
 
 function parseMovieDetail(htmlContent, url) {
@@ -207,7 +207,7 @@ function parseMovieDetail(htmlContent, url) {
         var episodes = [];
         var seenEp = {};
         
-        // 1. Quét ngay trong trang hiện tại (nếu là trang xem phim)
+        // 1. Quét danh sách tập có sẵn trong trang hiện tại (nếu đang ở trang xem tập)
         var aRegex = /<a[^>]*href="([^"]+)"[^>]*title="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
         var match;
         while ((match = aRegex.exec(htmlContent)) !== null) {
@@ -218,9 +218,11 @@ function parseMovieDetail(htmlContent, url) {
                 epUrl = BASEURL + (epUrl.startsWith('/') ? '' : '/') + epUrl;
             }
 
-            // Bắt các link tập phim chứa chữ tap- hoặc số thứ tự tập sạch sẽ
-            if ((epUrl.indexOf('tap-') !== -1 || !isNaN(epText)) && epUrl.indexOf('/phim/') !== -1 && !seenEp[epUrl]) {
-                var nameEp = !isNaN(epText) ? ("Tập " + epText) : ("Tập");
+            // Chỉ lấy các link tập phim thực tế thuộc về bộ phim này (có chứa từ khóa tap- hoặc là số tập)
+            if (epUrl.indexOf('tap-') !== -1 && !seenEp[epUrl]) {
+                var numMatch = epUrl.match(/tap-(\d+)/i);
+                var nameEp = numMatch ? ("Tập " + numMatch[1]) : (!isNaN(epText) ? ("Tập " + epText) : "Tập");
+                
                 episodes.push({
                     id: epUrl,
                     name: nameEp,
@@ -230,29 +232,37 @@ function parseMovieDetail(htmlContent, url) {
             }
         }
 
-        // 2. Nếu đang ở trang thông tin phim (chưa có danh sách tập), tự động lấy link nút "Xem Phim" để điều hướng ngầm lấy tập
-        var extraPlayUrl = "";
+        // 2. Nếu đang ở trang thông tin chung (chưa có danh sách tập), lấy link nút "Xem Phim" để tự động tạo tập 1
+        var watchLink = "";
         if (episodes.length === 0) {
-            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+)"[^>]*>[^<]*Xem Phim/i) || html.match(/href="([^"]+\/tap-1[^"]+)"/i);
+            var xemPhimMatch = htmlContent.match(/href="([^"]+\/phim\/[^"]+\/tap-1[^"]*)"/i) || 
+                               html.match(/href="([^"]+\/tap-1[^"]*)"/i) ||
+                               htmlContent.match(/href="([^"]+)"[^>]*>[^<]*Xem Phim/i);
             if (xemPhimMatch) {
-                extraPlayUrl = xemPhimMatch[1];
-                if (extraPlayUrl.indexOf('http') !== 0) {
-                    extraPlayUrl = BASEURL + (extraPlayUrl.startsWith('/') ? '' : '/') + extraPlayUrl;
+                watchLink = xemPhimMatch[1];
+                if (watchLink.indexOf('http') !== 0) {
+                    watchLink = BASEURL + (watchLink.startsWith('/') ? '' : '/') + watchLink;
                 }
             }
         }
 
         var servers = [];
         if (episodes.length > 0) {
+            // Sắp xếp lại thứ tự tập từ 1 đến N chuẩn xác
+            episodes.sort(function(a, b) {
+                var numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                var numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
             servers.push({
                 name: "Danh Sách Vietsub",
                 episodes: episodes
             });
-        } else if (extraPlayUrl) {
-            // Tự động tạo danh sách tập từ trang xem phim được trỏ tới
+        } else if (watchLink) {
             servers.push({
-                name: "Xem Phim Nhanh",
-                episodes: [{ id: extraPlayUrl, name: "Tập 1", slug: "tap-1" }]
+                name: "Danh Sách Vietsub",
+                episodes: [{ id: watchLink, name: "Tập 1", slug: "tap-1" }]
             });
         } else {
             servers.push({
