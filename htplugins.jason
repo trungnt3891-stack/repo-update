@@ -1,1 +1,104 @@
-
+{
+  "version": 1,
+  "plugins": [
+   {
+            "id": "NguonC",
+            "name": "NguonCnoAds",
+            "version": "1.1.6",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/nguoncHT_plugin.js",
+            "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png",
+    },
+    {
+            "id": "Vsmov",
+            "name": "PhimVsmov",
+            "version": "1.1.6",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Vsmov_plugin.js",
+            "iconUrl": "https://vsmov.com/VSmov.png",
+    },
+    {
+      "id": "kkphim",
+      "name": "KKPhim",
+      "version": "1.0.2",
+      "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim_plugin.js",
+      "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/kkphim.png"
+    },
+    {
+            "id": "VicDn",
+            "name": "PhimVicDn",
+            "version": "1.1.6",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Vicdn_plugin.js",
+            "iconUrl": "https://vicdn.cc/vicdn.png",
+    },
+    {
+            "id": "shortflix",
+            "name": "PhimNgắnHay",
+            "version": "1.2.2",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/shortflix_plugin.js",
+            "iconUrl": "https://m.media-amazon.com/images/I/61fJ78I23IL.png",
+            "info": "Phim ngắn hay, đăng nhập ggacount phụ để xem."
+    },
+    {
+      "id": "Mê Phim Ngắn",
+      "name": "Mê Phim Ngắn",
+      "version": "1.1.0",
+      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/mephimngan_plugin.js",
+      "iconUrl": "https://r2.gamomephim.com/site/logo-1784305321242.png"
+    },
+     {
+      "id": "Phimngan.net",
+      "name": "Phimngan.net",
+      "version": "1.1.0",
+      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/phimngannet_plugin.js",
+      "iconUrl": "https://downloadr2.apkmirror.com/wp-content/uploads/2024/02/58/65c425da5bb6e_live.shorttv.apps.png"
+    },
+    {
+            "id": "hh3d",
+            "name": "HH3D - Hoạt Hình 3D",
+            "version": "1.0.5",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/hh3d_plugin.js",
+            "iconUrl": "https://hoathinh3d.co/wp-content/uploads/2023/09/favicon.png"
+    },
+    {
+      "id": "Anime09",
+      "name": "Anime09",
+      "version": "1.0.3",
+      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Anime09_plugin.js",
+      "iconUrl": "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/c72e2f68-1a1c-48a2-aa5f-edf7eaaf3548/d77q5ev-af22ff5c-be81-4e24-bf0e-13836c6c939e.png"
+    },
+    {
+      "id": "bilutv",
+      "name": "Nguồn Bilutv",
+      "version": "1.4",
+      "scriptUrl": "https://rawcdn.githack.com/alokillgtv-gif/VAXAPPSCRIPT/4fda37b345d013471e4267298f7af73ea389f621/Plugins/bilutv_plugin.js",
+      "iconUrl": "https://bilutv.asia/img/bilutvlogo-ngang.jpg"
+    },
+    {
+            "id": "phimfun",
+            "name": "Nguồn Phim Fun",
+            "version": "1.0.4",
+            "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/phimfun_plugin.js",
+            "iconUrl": "https://phimfun.net/Content/PhimFun/Imgs/phimFun.png",
+    },
+    {
+      "id": "otruyen",
+      "name": "OTruyen",
+      "version": "1.0.2",
+      "scriptUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/otruyen_plugin.js",
+      "iconUrl": "https://docs.otruyenapi.com/favicon-32x32.png"
+    },
+    {
+      "id": "ThethaoTV",
+      "name": "ThethaoTV",
+      "version": "1.0.1",
+      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/Thethao_plugin.js",
+      "iconUrl": "https://yt3.googleusercontent.com/kJ7itr1ZrmnC7UmE79u3yQIhcHP6vfI9RZLlgIlgXwdWhtwMjzjLTmxs6sI0pbg_R-ZYQ5Or-g=s160-c-k-c0x00ffffff-no-rj"
+    },
+    {
+      "id": "VTV",
+      "name": "truyenhinh",
+      "version": "1.0.3",
+      "scriptUrl": "https://raw.githubusercontent.com/trungnt3891-stack/repo-update/refs/heads/main/plugins/VTV_plugin.js",
+      "iconUrl": "https://bcp.cdnchinhphu.vn/Uploaded/tranthithom/2021_07_26/logo-vtv.png"
+    }
+    ]
+}
