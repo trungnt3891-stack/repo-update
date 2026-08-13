@@ -6,7 +6,7 @@ function getManifest() {
     return JSON.stringify({
         "id": "nguoncnew",
         "name": "Phim NguonC Xoá Quảng Cáo",
-        "version": "7.0.0", // Đã fix lỗi chí mạng JS Comment. Sniffer siêu tốc.
+        "version": "1.0.1", // Đã fix lỗi chí mạng JS Comment. Sniffer siêu tốc.
         "baseUrl": "https://phim.nguonc.com",
         "iconUrl": "https://raw.githubusercontent.com/youngbi/repo/main/plugins/nguonC.png",
         "isEnabled": true,
